@@ -1,0 +1,9 @@
+BatchPlant1,15138,Object
+BatchPlantType,15098,ObjectType
+GenericActuatorType,15016,ObjectType
+GenericMotorType,15001,ObjectType
+GenericSensorType,15008,ObjectType
+LoadcellTransmitterType,15029,ObjectType
+MixerMotorType,15056,ObjectType
+MixerType,15063,ObjectType
+ValveType,15043,ObjectType

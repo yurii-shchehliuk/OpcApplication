@@ -1,0 +1,40 @@
+[
+  {
+    "NodeId": "2257",
+    "Name": "StartTime",
+    "NodeType": "Value",
+    "Range": 0,
+    "Msecs": 3000
+  },
+  {
+    "NodeId": "15141",
+    "Name": "OutputSubscription",
+    "NodeType": "Subscription",
+    "Range": 4,
+    "Msecs": 0
+
+  },
+  {
+    "NodeId": "15148",
+    "Name": "ExcitationVoltage",
+    "NodeType": "Subscription",
+    "Range": 0,
+    "Msecs": 1000
+
+  },
+  {
+    "NodeId": "C3.nsuri=http://opcfoundation.org/UA/;n=2286",
+    "Name": "test name",
+    "NodeType": "Value"
+  },
+  {
+    "NodeId": "15176",
+    "Name": "StartProcess",
+    "NodeType": "Method"
+  },
+  {
+    "NodeId": "010101",
+    "Name": "should not be found",
+    "NodeType": "Value"
+  }
+]

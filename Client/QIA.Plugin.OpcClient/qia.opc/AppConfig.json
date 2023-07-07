@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "Initial",
+    "SkipPredefined": true,
+    "CreateFullTree": true
+  },
+  {
+    "Name": "Advanced",
+    "SkipPredefined": false,
+    "CreateFullTree": true
+  },
+  {
+    "Name": "Slim",
+    "SkipPredefined": true,
+    "CreateFullTree": false
+  }
+]
