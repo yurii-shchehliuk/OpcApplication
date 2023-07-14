@@ -3,6 +3,7 @@ using Opc.Ua.Server;
 using OpcServer.Data;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 
 namespace OpcServer
@@ -36,7 +37,7 @@ namespace OpcServer
         {
             NodeStateCollection predefinedNodes = new NodeStateCollection();
             predefinedNodes.LoadFromBinaryResource(context,
-                ".\\Data\\BatchPlant.PredefinedNodes.uanodes",
+                Directory.GetCurrentDirectory()+ "/Data/BatchPlant.PredefinedNodes.uanodes",
                 typeof(QiagenOpcNodeManager).GetTypeInfo().Assembly,
                 true);
 

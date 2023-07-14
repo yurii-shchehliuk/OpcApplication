@@ -36,7 +36,7 @@ namespace QIA.Plugin.OpcClient.Services
             }
             catch (Exception ex)
             {
-                LoggerManager.Logger.Error(ex, "Couldn't deserialize nodemanager");
+                LoggerManager.Logger.Error(ex, "Couldn't deserialize nodemanager:");
                 throw new Exception("Couldn't deserialize nodemanager", ex.InnerException);
             }
         }

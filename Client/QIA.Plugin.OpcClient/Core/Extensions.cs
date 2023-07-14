@@ -84,16 +84,11 @@ namespace QIA.Plugin.OpcClient.Core
             }
             catch (Exception ex)
             {
-                LoggerManager.Logger.Error("SQL connection issue appeared: {0}", ex.Message);
+                LoggerManager.Logger.Information($"Db: {context.Database.GetConnectionString()}");
+                LoggerManager.Logger.Error("SQL connection issue appeared: {0}, {1}", ex.Message, ex.InnerException?.Message);
                 throw;
             }
         }
-
-        public static T ParseEnum<T>(string value)
-        {
-            return (T)Enum.Parse(typeof(T), value, true);
-        }
-
         public static string ReadServerUrl() => config.GetConnectionString("OpcUrl");
         public static T ReadSettings<T>() where T : class => serviceProvider.GetRequiredService<IOptions<T>>().Value;
         public static T GetService<T>() where T : class => serviceProvider.GetRequiredService<T>();

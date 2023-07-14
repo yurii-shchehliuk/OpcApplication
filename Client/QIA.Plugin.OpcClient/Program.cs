@@ -58,7 +58,7 @@ namespace QIA.Plugin.OpcClient
 
             quitEvent.WaitOne(Timeout.Infinite);
             ShutdownTokenSource.Cancel();
-            Console.WriteLine("++++EXIT++++");
+            LoggerManager.Logger.Information("++++EXIT++++");
         }
 
         /// <summary>

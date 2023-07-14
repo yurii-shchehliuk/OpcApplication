@@ -39,7 +39,7 @@ namespace QIA.Plugin.OpcClient.Repository
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Adding error {0}", ex.Message);
+                LoggerManager.Logger.Information("Adding error {0}", ex.Message);
                 throw;
             }
         }

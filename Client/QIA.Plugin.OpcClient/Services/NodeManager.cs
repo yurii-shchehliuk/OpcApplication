@@ -116,11 +116,11 @@ namespace QIA.Plugin.OpcClient.Services
             {
                 if (result.StatusCode != StatusCodes.Good)
                 {
-                    Console.WriteLine($"Method call failed: {result.StatusCode}");
+                    LoggerManager.Logger.Information($"Method call failed: {result.StatusCode}");
                 }
                 else
                 {
-                    Console.WriteLine("Method call succeeded.");
+                    LoggerManager.Logger.Information("Method call succeeded.");
                 }
             }
         }

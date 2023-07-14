@@ -13,12 +13,16 @@ namespace QIA.Plugin.OpcClient.Core
         /// <summary>
         /// Mapping of the application logging levels to OPC stack logging levels.
         /// </summary>
+#pragma warning disable IDE0052 // Remove unread private members
+#pragma warning disable CS0414 // The field 'LoggerManager.OpcTraceToLoggerVerbose' is assigned but its value is never used
         private static int OpcTraceToLoggerVerbose = 0;
         private static int OpcTraceToLoggerDebug = 0;
         private static int OpcTraceToLoggerInformation = 0;
         private static int OpcTraceToLoggerWarning = 0;
         private static int OpcTraceToLoggerError = 0;
         private static int OpcTraceToLoggerFatal = 0;
+#pragma warning restore CS0414 // The field 'LoggerManager.OpcTraceToLoggerVerbose' is assigned but its value is never used
+#pragma warning restore IDE0052 // Remove unread private members
         /// <summary>
         /// Set the OPC stack log level.
         /// </summary>

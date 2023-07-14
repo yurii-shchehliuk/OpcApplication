@@ -1,6 +1,7 @@
 ﻿using Opc.Ua;
 using Opc.Ua.Configuration;
 using System;
+using System.IO;
 using System.Threading;
 
 namespace OpcServer
@@ -31,11 +32,11 @@ namespace OpcServer
                 //var opcConfig = new OpcApplicationConfiguration().Configure();
                 try
                 {
-                    application.LoadApplicationConfiguration(".\\Config\\BatchPlantServer.Config.xml", false).Wait();
+                    application.LoadApplicationConfiguration(Directory.GetCurrentDirectory() + "/Config/BatchPlantServer.Config.xml", false).Wait();
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Config: " + ex.Message);
                     throw ex;
                 }
 

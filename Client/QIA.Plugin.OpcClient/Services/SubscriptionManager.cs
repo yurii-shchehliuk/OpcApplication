@@ -27,9 +27,9 @@ namespace QIA.Plugin.OpcClient.Services
         private readonly Session m_session;
         private Subscription m_subscription;
         // events
-        private NotificationEventHandler m_SessionNotification;
-        private EventHandler m_PublishStatusChanged;
-        private SubscriptionStateChangedEventHandler m_SubscriptionStateChanged;
+        private NotificationEventHandler m_SessionNotification = null;
+        private EventHandler m_PublishStatusChanged = null;
+        private SubscriptionStateChangedEventHandler m_SubscriptionStateChanged = null;
 
         public SubscriptionManager(INodeManager nm, IDataAccess repo, IAzureMessageService azureMessageService)
         {
@@ -66,7 +66,7 @@ namespace QIA.Plugin.OpcClient.Services
                     Subscription duplicateSubscription = m_session.Subscriptions.FirstOrDefault(s => s.Id != 0 && s.Id.Equals(newSubscription.Id) && s != newSubscription);
                     if (duplicateSubscription != null)
                     {
-                        Console.WriteLine("Duplicate subscription was created with the id: {0}", duplicateSubscription.Id);
+                        LoggerManager.Logger.Information("Duplicate subscription was created with the id: {0}", duplicateSubscription.Id);
 
                         duplicateSubscription.Delete(false);
                         m_session.RemoveSubscription(newSubscription);
@@ -266,7 +266,7 @@ namespace QIA.Plugin.OpcClient.Services
             {
                 //await UpdateNodeValue(node, nodeValueNew);
                 await AddNewNode(nodeConfig.NodeId, nodeValueNew);
-                tempNodes = new List<TempNode>();
+                var i = tempNodes.RemoveAll(c => c.NodeId == nodeConfig.NodeId);
                 Logger.Information($"[monitoring range] {nodeConfig.Name} {nodeValueNew}");
             }
         }

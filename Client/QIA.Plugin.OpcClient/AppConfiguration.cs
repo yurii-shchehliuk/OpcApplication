@@ -83,7 +83,7 @@ namespace QIA.Plugin.OpcClient
 
             //AppConfiguration.OnDiscoverEndpoints(application);
 
-            Console.WriteLine("Connecting to: " + Extensions.ReadServerUrl());
+            LoggerManager.Logger.Information("Connecting to: " + Extensions.ReadServerUrl());
         }
 
 
@@ -110,7 +110,7 @@ namespace QIA.Plugin.OpcClient
             }
             catch (Exception ex)
             {
-                LoggerManager.Logger.Error(ex, "Cannot connect to the server" + ex.Message);
+                LoggerManager.Logger.Error(ex, "Cannot connect to the server:" + ex.Message);
                 throw;
             }
         }
