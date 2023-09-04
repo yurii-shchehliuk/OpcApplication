@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "OpcClient": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:52819;http://localhost:52820"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}

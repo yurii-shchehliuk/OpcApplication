@@ -1,0 +1,49 @@
+<section class="container">
+    <div class="container-chart">
+        <mat-card>
+            <mat-card-title>OPC data chart [{{channelSource}}]</mat-card-title>
+            <mat-card-subtitle>
+                <p class="d-inline">
+                    Realtime OPC data channels monitor
+                </p>
+                <div class="refresh-chart">
+                    <button (click)="refreshChart($event)">R</button>
+                </div>
+            </mat-card-subtitle>
+        </mat-card>
+        <canvas id="myChart" chart></canvas>
+    </div>
+    <div class="container-details">
+        <table>
+            <tr>Add a new channel</tr>
+            <tr>
+                <td><input type="text" placeholder="Node Id" class="form-control" [(ngModel)]="newNode.NodeId" /></td>
+                <td><input type="text" placeholder="Name" class="form-control" [(ngModel)]="newNode.Name" /></td>
+                <td><input type="number" placeholder="Range" class="form-control" [(ngModel)]="newNode.Range" /></td>
+                <td><input type="number" placeholder="MSecs" class="form-control col-md-3"
+                        [(ngModel)]="newNode.MSecs" /></td>
+                <td class="newNode"><button mat-raised-button color="primary" (click)="nodeMonitor()">Add</button></td>
+            </tr>
+            <br>
+            <tr>
+                <th>Node Id</th>
+                <th>Name</th>
+                <th>Value</th>
+                <th>Range/MSecs</th>
+                <th></th>
+            </tr>
+            <tr *ngFor="let item of nodeArray" class="node">
+                <td>{{item.NodeId}}</td>
+                <td>{{item.Name}}</td>
+                <td class="node-value">{{getNodeValue(item.NodeId)}}</td>
+                <td>{{item.Range}}/{{item.MSecs}}</td>
+                <td class="node-action">
+                    <i (click)="hideNode($event, item.NodeId)" class="bi bi-eye h4 me-2"></i>
+                    <i (click)="removeNode(item.NodeId)" class="bi bi-trash h4"></i>
+                </td>
+            </tr>
+        </table>
+    </div>
+</section>
+
+<app-node-tree></app-node-tree>

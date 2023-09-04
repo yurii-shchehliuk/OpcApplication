@@ -1,0 +1,16 @@
+<section>
+    <h2>Hub source</h2>
+    <div #channelList class="channelList">
+        <div routerLink="." *ngFor="let channel of channelsArr" class="channel" (click)="selectChannel(channel)">
+            <p class="channel-text">{{channel}}</p>
+            <span aria-hidden="true" (click)="removeGroup(channel)">&times;</span>
+        </div>
+    </div>
+
+    <div class="input-group mb-3 newChannel">
+        <input type="text" placeholder="Group name" class="form-control" #newGroup/>
+        <div class="input-group-append">
+            <span class="input-group-text" id="basic-addon2" (click)="addGroup(newGroup)">+</span>
+        </div>
+    </div>
+</section>

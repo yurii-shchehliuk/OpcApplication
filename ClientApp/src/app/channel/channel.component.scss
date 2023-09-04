@@ -1,0 +1,30 @@
+.container {
+  &-chart {
+    mat-card {
+      padding: 0.5em 1em;
+      .refresh-chart {
+        display: inline;
+        float: right;
+      }
+    }
+
+    canvas {
+      margin-top: 1.5em;
+    }
+  }
+
+  &-details {
+    .newNode {
+      padding-left: 1.5em;
+    }
+    .node {
+      &-action {
+        padding-left: 1.5em;
+      }
+    }
+  }
+}
+
+.background-hidden {
+  background-color: aliceblue;
+}
