@@ -33,7 +33,11 @@ namespace SignalR.Client
         {
             await Task.Run(async () =>
             {
-                await signalRService.StartConnectionAsync();
+                var result = await signalRService.StartConnectionAsync();
+                if (!result)
+                {
+                    return;
+                }
 
                 signalRService.ListenGraphSend();
                 signalRService.ListenMessages();

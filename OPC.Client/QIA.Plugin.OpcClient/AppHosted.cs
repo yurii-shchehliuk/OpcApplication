@@ -37,8 +37,6 @@ namespace QIA.Plugin.OpcClient
         {
             await Task.Run(async () =>
             {
-                _logger.LogInformation("Starting infinite background service...");
-
                 var app = OpcConfiguration.GetInstance();
                 app.InitSession();
 
@@ -50,6 +48,7 @@ namespace QIA.Plugin.OpcClient
                     await SessionStartAsync();
                     success = true;
                     LoggerManager.Logger.Information("++++Done++++\nPress Ctrl+C to exit");
+                    Console.WriteLine("# Subscriptions:");
                     Console.ReadLine();
                 }
                 catch (Exception ex)

@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Azure;
 using Newtonsoft.Json;
 using QIA.Plugin.OpcClient.Core;
 using QIA.Plugin.OpcClient.Entities;
@@ -10,6 +11,7 @@ namespace QIA.Plugin.OpcClient.Services
 {
     public class MessageService
     {
+        private bool displayErrorMessage = true;
         private readonly HttpClient _httpClient;
         public MessageService(HttpClient httpClient)
         {
@@ -24,12 +26,20 @@ namespace QIA.Plugin.OpcClient.Services
 
             StringContent httpContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
             string query = "?group=" + groupName;
-            var result = await _httpClient.PostAsync("https://localhost:7027/Data/SendMessage" + query, httpContent);
-            if (!result.IsSuccessStatusCode)
+
+            try
             {
-                var response = await result.Content.ReadAsStringAsync();
-                LoggerManager.Logger.Error("Http message post error: {0}", response);
+                var result = await _httpClient.PostAsync("https://localhost:7027/Data/SendMessage" + query, httpContent);
+                if (!result.IsSuccessStatusCode)
+                {
+                    var response = await result.Content.ReadAsStringAsync();
+                    LoggerManager.Logger.Error("Http message post error: {0}", response);
+                }
             }
+            catch
+            {
+            }
+           
         }
         public async Task SendGraph(string graphName, TreeNode<NodeData> graphTree, string groupName = "All")
         {
@@ -44,12 +54,24 @@ namespace QIA.Plugin.OpcClient.Services
 
             StringContent httpContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
             string query = "?groupName=" + groupName + "&graphName=" + graphName;
-            var result = await _httpClient.PostAsync("https://localhost:7027/Data/SendGraph" + query, httpContent);
-            if (!result.IsSuccessStatusCode)
+            try
             {
-                var response = await result.Content.ReadAsStringAsync();
-                LoggerManager.Logger.Error("Http message post error: {0}", response);
+                var result = await _httpClient.PostAsync("https://localhost:7027/Data/SendGraph" + query, httpContent);
+                if (!result.IsSuccessStatusCode)
+                {
+                    var response = await result.Content.ReadAsStringAsync();
+                    LoggerManager.Logger.Error("Http message post error: {0}", response);
+                }
             }
+            catch (Exception ex)
+            {
+                if (displayErrorMessage)
+                {
+                    LoggerManager.Logger.Error("Http message post error: {0}", ex.Message);
+                    displayErrorMessage = false;
+                }
+            }
+
         }
     }
 }

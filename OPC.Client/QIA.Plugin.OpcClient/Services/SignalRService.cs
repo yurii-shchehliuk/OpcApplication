@@ -35,24 +35,26 @@ namespace QIA.Plugin.OpcClient.Services
                 .Build();
         }
 
-        public async Task StartConnectionAsync()
+        public async Task<bool> StartConnectionAsync()
         {
             try
             {
                 if (_hubConnection is null || _hubConnection.State == HubConnectionState.Disconnected)
                 {
                     await _hubConnection.StartAsync();
+
                 }
 
                 Console.WriteLine(string.Format("# Connected to the {0} Hub", hubUrl));
-                await Task.CompletedTask;
+                return true;
             }
-            catch (Exception ex)
+            catch
             {
-                LoggerManager.Logger.Error(ex, string.Format("Cannot connect to {0}: {1}", hubUrl, ex.Message));
+                LoggerManager.Logger.Error(string.Format("Cannot connect to {0}", hubUrl));
+                return false;
             }
         }
-      
+
         public async Task SendMessage(NodeData nodeData, string groupName = "All")
         {
             await _hubConnection.InvokeAsync("SendMessage", groupName, nodeData);
@@ -85,7 +87,7 @@ namespace QIA.Plugin.OpcClient.Services
             });
 
             //test does accepts message
-            _hubConnection.On<string, string,string>("LoadGraph", async (groupName, graphName, graphTree) =>
+            _hubConnection.On<string, string, string>("LoadGraph", async (groupName, graphName, graphTree) =>
             {
                 Console.WriteLine(graphTree);
                 await Task.CompletedTask;
