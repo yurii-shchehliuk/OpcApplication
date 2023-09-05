@@ -24,6 +24,7 @@ export class ChannelsManagerComponent implements AfterViewInit {
   }
 
   selectChannel(channel: string) {
+    this.appService.signalReset();
     let childrens = this.channelArrElem.nativeElement.children;
     for (let item of childrens) {
       item.classList.remove('channel-selected');

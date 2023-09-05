@@ -25,8 +25,9 @@ export class ChecklistDatabase {
   constructor(private appService: AppService) {
     this.initialize();
     this.appService.getGraphData().subscribe((data) => {
-      this.graphData = data;
       // Now you can use this.graphData in your component
+      const dataTree = this.buildFileTree(data, 0);
+      this.dataChange.next(dataTree);
     });
   }
 
@@ -35,9 +36,7 @@ export class ChecklistDatabase {
 
     // Build the tree nodes from Json object. The result is a list of `TodoItemNode` with nested
     //     file node as children.
-    const data = this.buildFileTree(treeData, 0);
-
-    // Notify the change.
+    const data = this.buildFileTree(this.graphData, 0);
     this.dataChange.next(data);
   }
 
@@ -107,7 +106,10 @@ export class NodeTreeComponent {
     true /* multiple */
   );
 
-  constructor(private _database: ChecklistDatabase) {
+  constructor(
+    private _database: ChecklistDatabase,
+    private appService: AppService
+  ) {
     this.treeFlattener = new MatTreeFlattener(
       this.transformer,
       this.getLevel,
@@ -124,10 +126,16 @@ export class NodeTreeComponent {
     );
 
     _database.dataChange.subscribe((data) => {
+      console.log(data);
       this.dataSource.data = data;
     });
   }
 
+  loadTree() {
+    this.appService.loadGraphAction('All', 'graph-new.json');
+  }
+
+  //#region init
   getLevel = (node: TodoItemFlatNode) => node.level;
 
   isExpandable = (node: TodoItemFlatNode) => node.expandable;
@@ -252,6 +260,7 @@ export class NodeTreeComponent {
     const nestedNode = this.flatNodeMap.get(node);
     this._database.updateItem(nestedNode!, itemValue);
   }
+  //#endregion
 }
 
 export class TodoItemNode {
@@ -265,86 +274,3 @@ export class TodoItemFlatNode {
   level: number;
   expandable: boolean;
 }
-
-const treeData = {
-  Data: {
-    StoreTime: '2023-08-31T12:16:20.5773988Z',
-    Value: null,
-    Id: 'e667f572-585e-471c-a750-f2b5ae5ed0be',
-    NodeId: '0',
-    Name: 'ROOT',
-    NodeType: 'Object',
-    MSecs: 1000,
-    Range: 0,
-  },
-  Children: [
-    {
-      Data: {
-        StoreTime: '2023-08-31T12:16:20.587757Z',
-        Value: null,
-        Id: 'c772e035-d93d-4389-a24f-9ef2241b2117',
-        NodeId: '15138',
-        Name: 'Batch Plant #1',
-        NodeType: 'Object',
-        MSecs: 1000,
-        Range: 0,
-      },
-      Children: [
-        {
-          Data: {
-            StoreTime: '2023-08-31T12:16:20.5904018Z',
-            Value: null,
-            Id: 'a21827d9-8446-4cc6-9177-6d130c1334cc',
-            NodeId: '15139',
-            Name: 'MixerX001',
-            NodeType: 'Object',
-            MSecs: 1000,
-            Range: 0,
-          },
-          Children: [
-            {
-              Data: {
-                StoreTime: '2023-08-31T12:16:20.590949Z',
-                Value: null,
-                Id: 'd69ad126-17f0-4128-afac-27a2e8e8fc40',
-                NodeId: '15140',
-                Name: 'LT001',
-                NodeType: 'Object',
-                MSecs: 1000,
-                Range: 0,
-              },
-              Children: [
-                {
-                  Data: {
-                    StoreTime: '2023-08-31T12:16:20.5911729Z',
-                    Value: '24',
-                    Id: '4e1efb8a-2f58-47a5-b3a3-1c69282463cb',
-                    NodeId: '15148',
-                    Name: 'ExcitationVoltage',
-                    NodeType: 'Subscription',
-                    MSecs: 0,
-                    Range: 4,
-                  },
-                  Children: [],
-                },
-                {
-                  Data: {
-                    StoreTime: '2023-08-31T12:16:20.9510391Z',
-                    Value: null,
-                    Id: '7a821503-8ae7-4f30-97ff-712d91372e0b',
-                    NodeId: '15141',
-                    Name: 'Output',
-                    NodeType: 'Object',
-                    MSecs: 1000,
-                    Range: 0,
-                  },
-                  Children: [],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-  ],
-};

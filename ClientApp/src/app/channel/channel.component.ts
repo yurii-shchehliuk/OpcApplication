@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { AfterViewInit, Component, OnInit } from '@angular/core';
 import { MonitorAction, NewNode, NodeData } from '../models/models';
 import { ChartDataset, ChartConfiguration, Chart, ChartData } from 'chart.js';
 import { AppService } from '../app.service';
@@ -9,7 +9,7 @@ import { Subscription } from 'rxjs';
   templateUrl: './channel.component.html',
   styleUrls: ['./channel.component.scss'],
 })
-export class ChannelComponent {
+export class ChannelComponent implements OnInit, AfterViewInit {
   chart: Chart;
   nodeArray: NodeData[] = [];
   ignoreArray: string[] = [];
@@ -29,11 +29,12 @@ export class ChannelComponent {
   };
 
   constructor(private appService: AppService) {}
-
+  
   ngOnInit() {
     this.createChart();
 
-    //listen from selected channel
+    // listen from selected channel
+    // signalr connection is created in channel-monitor
     let sub = this.appService.getChannel().subscribe((data: string) => {
       this.channelSource = data;
 
@@ -44,7 +45,6 @@ export class ChannelComponent {
 
       this.chart.destroy();
       this.createChart();
-      this.refreshChart();
     });
 
     // Fill up chart with data if not in ignore and if
@@ -64,13 +64,15 @@ export class ChannelComponent {
     this.subscriptions.push(sub2);
   }
 
+  ngAfterViewInit(): void {
+    this.refreshChart();
+  }
+
   refreshChart(event: any = undefined) {
     if (event) console.log(this.datasets);
 
     this.chart.render();
     this.chart.update();
-
-    this.appService.askForGraph();
   }
 
   nodeMonitor() {

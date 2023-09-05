@@ -82,14 +82,14 @@ namespace QIA.Plugin.OpcClient.Services
             {
                 var direcory = Path.Combine(Directory.GetCurrentDirectory(), graphName);
                 var graphData = File.ReadAllText(direcory);
-                await messageService.SendGraph("graphName", graphData);
+                await messageService.SendGraph(graphName, graphData);
                 //await SendGraph(graphName, "here graph data comes");
             });
 
             //test does accepts message
             _hubConnection.On<string, string, string>("LoadGraph", async (groupName, graphName, graphTree) =>
             {
-                Console.WriteLine(graphTree);
+                var t = (graphTree);
                 await Task.CompletedTask;
             });
 
