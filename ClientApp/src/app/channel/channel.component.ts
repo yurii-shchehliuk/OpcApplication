@@ -12,7 +12,6 @@ import { Subscription } from 'rxjs';
 export class ChannelComponent implements OnInit, AfterViewInit {
   chart: Chart;
   nodeArray: NodeData[] = [];
-  ignoreArray: string[] = [];
   datasets: ChartDataset[] = [];
   labels: string[] = [];
   channelSource = '';
@@ -20,44 +19,56 @@ export class ChannelComponent implements OnInit, AfterViewInit {
   subscriptions: Subscription[] = [];
 
   newNode: NewNode = {
-    NodeId: '',
-    Name: '',
-    MSecs: null,
-    Range: null,
+    nodeId: '',
+    name: '',
+    mSecs: null,
+    range: null,
     Action: MonitorAction.Monitor,
-    Group: this.channelSource,
+    group: this.channelSource,
   };
 
   constructor(private appService: AppService) {}
-  
+
   ngOnInit() {
     this.createChart();
 
     // listen from selected channel
     // signalr connection is created in channel-monitor
-    let sub = this.appService.getChannel().subscribe((data: string) => {
+    let sub = this.appService.getChannel.subscribe((data: string) => {
       this.channelSource = data;
 
-      this.ignoreArray = [];
       this.nodeArray = [];
       this.datasets = [];
       this.labels = [];
+
+      this.appService.getNodesWeb();
 
       this.chart.destroy();
       this.createChart();
     });
 
     // Fill up chart with data if not in ignore and if
-    let sub2 = this.appService.getMessageObservable().subscribe((nodeData) => {
-      if (this.ignoreArray.findIndex((c) => c === nodeData.NodeId) !== -1)
-        return;
+    let sub2 = this.appService.getNodeObservable.subscribe((nodeData) => {
       if (
-        this.nodeArray.findIndex((c) => c.NodeId === nodeData.NodeId) === -1
+        this.nodeArray.findIndex((c) => c.nodeId === nodeData.nodeId) === -1
       ) {
         this.nodeArray.push(nodeData);
       }
       this.pushEventToChartData(nodeData);
     });
+
+    let sub3 = this.appService.getNodeConfigurationsObservable.subscribe(
+      (nodeDataArr) => {
+        nodeDataArr.map((nodeData) => {
+          if (
+            this.nodeArray.findIndex((c) => c.nodeId === nodeData.nodeId) === -1
+          ) {
+            this.nodeArray.push(nodeData);
+          }
+          this.pushEventToChartData(nodeData);
+        });
+      }
+    );
 
     //subscriptions
     this.subscriptions.push(sub);
@@ -69,6 +80,7 @@ export class ChannelComponent implements OnInit, AfterViewInit {
   }
 
   refreshChart(event: any = undefined) {
+    this.appService.signalrInit();
     if (event) console.log(this.datasets);
 
     this.chart.render();
@@ -76,11 +88,21 @@ export class ChannelComponent implements OnInit, AfterViewInit {
   }
 
   nodeMonitor() {
-    let index = this.datasets.findIndex((c) => c.label === this.newNode.NodeId);
-    this.ignoreArray.splice(index, 1);
+    this.newNode.group = this.channelSource;
+    this.newNode.Action = MonitorAction.Monitor;
 
-    this.appService.nodeMonitor(this.newNode);
+    this.appService.nodeMonitorWeb(this.newNode);
     this.newNode = (<Partial<NewNode>>{}) as NewNode;
+  }
+
+  removeNode(nodeId: any) {
+    nodeId.Action = MonitorAction.Unmomonitor;
+    this.appService.nodeMonitorWeb(nodeId);
+
+    let index = this.datasets.findIndex((c) => c.label === nodeId);
+    this.datasets.splice(index, 1);
+    this.nodeArray.splice(index, 1);
+    this.refreshChart();
   }
 
   hideNode(event: any, nodeId: string) {
@@ -106,14 +128,6 @@ export class ChannelComponent implements OnInit, AfterViewInit {
 
     event.stopPropagation();
     event.preventDefault();
-  }
-
-  removeNode(nodeId: string) {
-    let index = this.datasets.findIndex((c) => c.label === nodeId);
-    this.datasets.splice(index, 1);
-    this.nodeArray.splice(index, 1);
-    this.ignoreArray.push(nodeId);
-    this.refreshChart();
   }
 
   protected getNodeValue(nodeId: string) {
@@ -162,12 +176,12 @@ export class ChannelComponent implements OnInit, AfterViewInit {
   }
 
   private pushEventToChartData(event: NodeData): void {
-    let dsetItem = this.datasets.findIndex((c) => c.label === event.NodeId);
+    let dsetItem = this.datasets.findIndex((c) => c.label === event.nodeId);
 
     if (dsetItem === -1) {
       const newDataset: ChartDataset = {
-        label: event.NodeId,
-        data: [event.Value],
+        label: event.nodeId,
+        data: [event.value],
 
         // data: [
         //   {
@@ -181,11 +195,11 @@ export class ChannelComponent implements OnInit, AfterViewInit {
       this.datasets.push(newDataset);
     } else {
       this.removeLastElementFromChartDataAndLabel(this.datasets[dsetItem], 12);
-      this.datasets[dsetItem].data.push(event.Value);
+      this.datasets[dsetItem].data.push(event.value);
     }
 
-    if (this.labels.findIndex((c) => c === event.StoreTime) === -1) {
-      this.labels.push(event.StoreTime);
+    if (this.labels.findIndex((c) => c === event.storeTime) === -1) {
+      this.labels.push(event.storeTime);
     }
 
     //TODO: the problem is that labels are adding as a stack and chart is with step one

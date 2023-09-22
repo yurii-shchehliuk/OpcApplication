@@ -10,88 +10,170 @@ import { NewNode, NodeData } from './models/models';
 })
 export class AppService {
   baseUrl = environment.server;
-  signalrHub = environment.signalrHub;
-  private selectedChannel = new BehaviorSubject<string>('All');
+  private selectedChannel = new BehaviorSubject<string>('');
   private graphDataSubject = new Subject<any>();
+  private appSettingsSubject = new Subject<any>();
+  private channelsSubject = new Subject<any>();
 
   private hubConnection: signalR.HubConnection;
-  private messageSubject: Subject<NodeData> = new Subject<NodeData>();
+  private nodeSubject: Subject<NodeData> = new Subject<NodeData>();
+  private nodeConfigurations: Subject<any[]> = new Subject<any[]>();
 
-  getChannel(): Observable<string> {
+  get getChannel(): Observable<string> {
     return this.selectedChannel.asObservable();
   }
 
-  getMessageObservable(): Observable<NodeData> {
-    return this.messageSubject.asObservable();
+  get getNodeObservable(): Observable<NodeData> {
+    return this.nodeSubject.asObservable();
   }
 
-  getGraphData(): Observable<any> {
+  get getNodeConfigurationsObservable(): Observable<any[]> {
+    return this.nodeConfigurations.asObservable();
+  }
+
+  get getGraphData(): Observable<any> {
     return this.graphDataSubject.asObservable();
   }
 
-  joinPublic() {
-    this.signalrInit(environment.signalrHub).then(() => {
-      this.listenMethod('MessageReceived');
-      this.askForGraph();
-      this.selectedChannel.next('All');
-    });
+  get getAppSettings(): Observable<any> {
+    return this.appSettingsSubject.asObservable();
   }
 
-  joinNewGroup(group: string) {
-    this.signalrInit(environment.signalrHub).then(() => {
-      this.hubConnection.invoke('JoinGroup', group);
-      this.listenMethod('MessageReceivedGroup');
-      this.askForGraph();
-      this.selectedChannel.next(group);
-    });
+  get getChannels() {
+    return this.channelsSubject.asObservable();
   }
 
-  nodeMonitor(node: NewNode) {
-    this.hubConnection.invoke('NodeMonitorAction', node);
+  private set setChannel(name: string) {
+    this.selectedChannel.next(name);
   }
 
   async signalReset() {
     if (this.hubConnection) await this.hubConnection.stop();
+    console.log('SignalR disconnected.');
   }
 
-  private askForGraph(group: string = '') {
-    this.hubConnection.on(
-      'LoadGraph',
-      (groupName: any, graphName: any, graphTree: any) => {
-        let data = JSON.parse(graphTree);
-        this.graphDataSubject.next(data);
-      }
-    );
-
-    this.loadGraphAction(group, 'graph-new.json');
-    this.loadGraphAction(group, 'graph-full.json');
-  }
-
-  loadGraphAction(group: string, graphName: string) {
-    this.hubConnection.invoke('GetGraphAction', group, graphName);
-  }
-
-  private listenMethod(method: string) {
-    this.hubConnection.on(method, (data: any) => {
-      let entity = JSON.parse(data);
-      let result = entity as NodeData;
-      result.StoreTime = new Date(entity.StoreTime).toLocaleString();
-      this.messageSubject.next(result);
-    });
-  }
-
-  private async signalrInit(hubUrl: string) {
+  async signalrInit() {
     this.hubConnection = new signalR.HubConnectionBuilder()
-      .withUrl(hubUrl)
+      .withUrl(environment.signalrHub)
       .build();
 
     try {
-      await this.hubConnection.start();
-      console.log('Connected to SignalR hub.');
+      await this.hubConnection.start().then(() => {
+        console.log('Connected to SignalR hub.');
+        this.listenGroups();
+      });
+
       return 'Connected';
     } catch (err) {
       console.error('Error while connecting to SignalR hub:', err);
       return undefined;
     }
   }
+
+  //#region actions
+  joinNewGroup(group: string) {
+    this.signalrInit().then(() => {
+      this.setChannel = group;
+      this.hubConnection.invoke('JoinGroup', group);
+      //listeners
+      this.listenNodesSubscription();
+      this.listenLoadGraph();
+      this.listenConfigNodes();
+      //listener-actions
+      this.listenGetSettings();
+      this.getNodesWeb();
+    });
+  }
+
+  getGraphWeb(isFull: boolean) {
+    this.hubConnection.invoke(
+      'GetGraphWeb',
+      this.selectedChannel.value,
+      isFull
+    );
+  }
+
+  getSettingsWeb() {
+    this.hubConnection.invoke('GetSettingsWeb', this.selectedChannel.value);
+  }
+
+  getChannelsWeb() {
+    this.hubConnection.invoke('GetGroupsWeb');
+  }
+
+  nodeMonitorWeb(node: NewNode) {
+    this.hubConnection.invoke('NodeMonitorWeb', node);
+    this.getNodesWeb();
+  }
+
+  getNodesWeb() {
+    this.hubConnection.invoke('GetNodesWeb', this.selectedChannel.value);
+  }
+
+  saveSettings(appSettings: any) {
+    if (!this.selectedChannel.value) return;
+    this.hubConnection.invoke(
+      'SaveSettingsWeb',
+      this.selectedChannel.value,
+      appSettings
+    );
+  }
+
+  addChannelWeb(name: string) {
+    this.hubConnection.invoke('AddGroupWeb', name);
+  }
+
+  removeChannelWeb(name: string) {
+    this.hubConnection.invoke('RemoveGroupWeb', name);
+    this.setChannel = '';
+  }
+  //#endregion
+
+  //#region listeners
+  listenGroups(method: string = 'GroupsReceived') {
+    this.hubConnection.on(method, (channels: any) => {
+      let data = JSON.parse(channels);
+      this.channelsSubject.next(data);
+    });
+
+    this.getChannelsWeb();
+  }
+
+  private listenNodesSubscription(method: string = 'NodeReceived') {
+    this.hubConnection.on(method, (data: any) => {
+      let result = data as NodeData;
+      result.storeTime = new Date(data.storeTime).toLocaleString();
+      this.nodeSubject.next(result);
+    });
+  }
+
+  private listenConfigNodes(method: string = 'ConfigNodesReceived') {
+    this.hubConnection.on(method, (data: any) => {
+      console.log(data);
+      let nodeConfigs = JSON.parse(data);
+      this.nodeConfigurations.next(nodeConfigs);
+    });
+  }
+
+  private listenLoadGraph(method: string = 'GraphReceived') {
+    this.hubConnection.on(method, (groupName: any, graphTree: any) => {
+      let data = JSON.parse(graphTree);
+      this.graphDataSubject.next(data);
+    });
+  }
+
+  private listenGetSettings(method: string = 'SettingsReceived') {
+    this.hubConnection.on(method, (settings: any) => {
+      let data = JSON.parse(settings);
+      if (!data) {
+        data = settings;
+      }
+      this.appSettingsSubject.next(data);
+    });
+
+    this.getSettingsWeb();
+    // this.getGraphWeb(this.appSettingsSubject.createFullTree);
+  }
+
+  //#endregion
 }

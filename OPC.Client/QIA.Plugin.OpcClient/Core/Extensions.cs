@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using QIA.Library.Worker;
-using QIA.Plugin.OpcClient.Core.Settings;
 using QIA.Plugin.OpcClient.Database;
 using QIA.Plugin.OpcClient.Repository;
 using QIA.Plugin.OpcClient.Services;

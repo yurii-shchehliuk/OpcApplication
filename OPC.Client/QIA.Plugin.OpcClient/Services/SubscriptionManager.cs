@@ -1,8 +1,7 @@
-﻿using Opc.Ua;
+﻿using Microsoft.EntityFrameworkCore;
+using Opc.Ua;
 using Opc.Ua.Client;
 using QIA.Plugin.OpcClient.Core;
-using QIA.Plugin.OpcClient.Core.Settings;
-using QIA.Plugin.OpcClient.DTOs;
 using QIA.Plugin.OpcClient.Entities;
 using QIA.Plugin.OpcClient.Repository;
 using QIA.Plugin.OpcClient.Services.Interfaces;
@@ -14,285 +13,299 @@ using System.Threading.Tasks;
 
 namespace QIA.Plugin.OpcClient.Services
 {
-    using static LoggerManager;
+	using static LoggerManager;
 
-    public class SubscriptionManager : ISubscriptionManager
-    {
-        //private static HashSet<NodeConfig> itemsToFind = null;
+	public class SubscriptionManager : ISubscriptionManager
+	{
+		private readonly INodeManager _nm;
+		private readonly IDataAccess<NodeData> _repo;
+		private readonly IAzureMessageService _azureMS;
+		private readonly SignalRService signalRService;
+		// core
+		private Session m_session;
+		private Subscription m_subscription;
+		// events handler
+		private NotificationEventHandler m_SessionNotification = null;
+		private EventHandler m_PublishStatusChanged = null;
+		private SubscriptionStateChangedEventHandler m_SubscriptionStateChanged = null;
+		// events 
+		public delegate Task TreeManagerHandler(object sender, NewNode node);
+		public event TreeManagerHandler FindNode;
 
-        private readonly INodeManager _nm;
-        private readonly IDataAccess _repo;
-        private readonly IAzureMessageService _azureMS;
-        private readonly MessageService messageService;
+		public SubscriptionManager(INodeManager nm, IDataAccess<NodeData> repo, IAzureMessageService azureMessageService, SignalRService signalRService)
+		{
+			_nm = nm;
+			_repo = repo;
+			_azureMS = azureMessageService;
+			this.signalRService = signalRService;
+			signalRService.NodeMonitor += OnMessageReceived;
 
-        // core
-        private Session m_session;
-        private Subscription m_subscription;
-        // events
-        private NotificationEventHandler m_SessionNotification = null;
-        private EventHandler m_PublishStatusChanged = null;
-        private SubscriptionStateChangedEventHandler m_SubscriptionStateChanged = null;
+			m_session = OpcConfiguration.OpcUaClientSession;
+			m_SessionNotification = new NotificationEventHandler(Session_NotificationAsync);
+			try
+			{
+				//itemsToFind = JsonSerializer.Deserialize<HashSet<BaseNode>>(File.ReadAllText(".\\nodemanager.json"));
+			}
+			catch (Exception ex)
+			{
+				Logger.Error(ex, "Couldn't deserialize nodemanager");
+			}
+		}
 
-        public SubscriptionManager(INodeManager nm, IDataAccess repo, IAzureMessageService azureMessageService, MessageService messageService)
-        {
-            _nm = nm;
-            _repo = repo;
-            _azureMS = azureMessageService;
-            this.messageService = messageService;
-            m_session = OpcConfiguration.OpcUaClientSession;
-            m_SessionNotification = new NotificationEventHandler(Session_NotificationAsync);
-            try
-            {
-                //itemsToFind = JsonSerializer.Deserialize<HashSet<NodeConfig>>(File.ReadAllText(".\\nodemanager.json"));
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "Couldn't deserialize nodemanager");
-            }
-        }
+		/// <summary>
+		/// Event from signalR to handle the node.
+		/// </summary>
+		/// <remarks>To manage a subscription, it should have a reference description. So we have to trigger TreeManager to make a request to the server to find the RD</remarks>
+		private void OnMessageReceived(object sender, NewNode message)
+		{
+			if (message.Action == MonitorAction.Monitor)
+			{
+				itemsToFind = new HashSet<BaseNode>(_repo.GetConfigNodes(message.Group).ToList());
 
-        public void SubscribeNew(ReferenceDescription reference)
-        {
-            if (m_session == null)
-            {
-                //TODO
-                m_session = OpcConfiguration.OpcUaClientSession;
+				FindNode.Invoke(this, message);
+				return;
+			}
+			// unmonitor
+			m_session = OpcConfiguration.OpcUaClientSession;
+			if (m_session.Subscriptions is null)
+				return;
 
-            }
+			foreach (var subscriptionItems in m_session.Subscriptions)
+			{
+				foreach (var monitoringItem in subscriptionItems.MonitoredItems)
+				{
+					var monitoringNodeId = monitoringItem.ResolvedNodeId.Identifier.ToString();
+					if (monitoringNodeId == message.NodeId)
+					{
+						subscriptionItems.Delete(true);
+					}
+				}
+			}
+		}
 
-            if (reference == null || m_session == null)
-                return;
+		public void SubscribeNew(ReferenceDescription reference)
+		{
+			if (m_session == null)
+			{
+				//TODO
+				m_session = OpcConfiguration.OpcUaClientSession;
 
-            try
-            {
-                Subscription newSubscription = new Subscription(m_session.DefaultSubscription);
-                m_session.AddSubscription(newSubscription);
-                newSubscription.Create();
+			}
 
-                Subscription duplicateSubscription = m_session.Subscriptions.FirstOrDefault(s => s.Id != 0 && s.Id.Equals(newSubscription.Id) && s != newSubscription);
-                if (duplicateSubscription != null)
-                {
-                    LoggerManager.Logger.Information("Duplicate subscription was created with the id: {0}", duplicateSubscription.Id);
+			if (reference == null || m_session == null)
+				return;
 
-                    duplicateSubscription.Delete(false);
-                    m_session.RemoveSubscription(newSubscription);
-                }
+			try
+			{
+				Subscription newSubscription = new Subscription(m_session.DefaultSubscription);
+				m_session.AddSubscription(newSubscription);
+				newSubscription.Create();
 
-                if (m_subscription != null)
-                {
-                    // remove previous subscription.
-                    m_subscription.StateChanged -= m_SubscriptionStateChanged;
-                    m_subscription.PublishStatusChanged -= m_PublishStatusChanged;
-                    m_subscription.Session.Notification -= m_SessionNotification;
-                }
-                if (newSubscription != null)
-                {
-                    m_subscription = newSubscription;
+				Subscription duplicateSubscription = m_session.Subscriptions.FirstOrDefault(s => s.Id != 0 && s.Id.Equals(newSubscription.Id) && s != newSubscription);
+				if (duplicateSubscription != null)
+				{
+					LoggerManager.Logger.Information("Duplicate subscription was created with the id: {0}", duplicateSubscription.Id);
 
-                    newSubscription.StateChanged += m_SubscriptionStateChanged;
-                    //m_subscription.PublishStatusChanged += m_PublishStatusChanged;
-                    newSubscription.Session.Notification += m_SessionNotification;
+					duplicateSubscription.Delete(false);
+					m_session.RemoveSubscription(newSubscription);
+				}
 
-                    //UpdateStatus();
-                    AddMonitoredItem(reference);
-                    LoggerManager.Logger.Information("Item added to monitoring");
-                }
-            }
-            catch (Exception exception)
-            {
-                Logger.Error(exception.Message, exception);
-                throw;
-            }
-        }
+				if (m_subscription != null)
+				{
+					// remove previous subscription.
+					m_subscription.StateChanged -= m_SubscriptionStateChanged;
+					m_subscription.PublishStatusChanged -= m_PublishStatusChanged;
+					m_subscription.Session.Notification -= m_SessionNotification;
+				}
+				if (newSubscription != null)
+				{
+					m_subscription = newSubscription;
 
-        public void SubscribeNew(string nodeId)
-        {
-            var node = _nm.GetNodeIdFromId(nodeId);
-            _nm.ReadNodeValue(node);
-            _nm.ReadNode(node);
-            _nm.FindInCache(nodeId);
-            SubscribeNew(reference: null);
+					newSubscription.StateChanged += m_SubscriptionStateChanged;
+					//m_subscription.PublishStatusChanged += m_PublishStatusChanged;
+					newSubscription.Session.Notification += m_SessionNotification;
 
-        }
+					//UpdateStatus();
+					AddMonitoredItem(reference);
+					LoggerManager.Logger.Information("Item added to monitoring");
+				}
+			}
+			catch (Exception exception)
+			{
+				Logger.Error(exception.Message, exception);
+				throw;
+			}
+		}
 
-        private void AddMonitoredItem(ReferenceDescription reference)
-        {
-            try
-            {
-                MonitoredItem monitoredItem = new MonitoredItem(m_subscription.DefaultItem);
+		public void SubscribeNew(string nodeId)
+		{
+			var node = _nm.GetNodeIdFromId(nodeId);
+			_nm.ReadNodeValue(node);
+			_nm.ReadNode(node);
+			_nm.FindInCache(nodeId);
+			SubscribeNew(reference: null);
+		}
 
-                monitoredItem.DisplayName = reference.DisplayName.Text;
-                monitoredItem.StartNodeId = (NodeId)reference.NodeId;
-                monitoredItem.NodeClass = reference.NodeClass;
-                monitoredItem.AttributeId = Attributes.Value;
-                monitoredItem.SamplingInterval = 0;
-                monitoredItem.QueueSize = 1;
+		private void AddMonitoredItem(ReferenceDescription reference)
+		{
+			try
+			{
+				MonitoredItem monitoredItem = new MonitoredItem(m_subscription.DefaultItem);
 
-                // add condition fields to any event filter.
-                EventFilter filter = monitoredItem.Filter as EventFilter;
+				monitoredItem.DisplayName = reference.DisplayName.Text;
+				monitoredItem.StartNodeId = (NodeId)reference.NodeId;
+				monitoredItem.NodeClass = reference.NodeClass;
+				monitoredItem.AttributeId = Attributes.Value;
+				monitoredItem.SamplingInterval = 0;
+				monitoredItem.QueueSize = 1;
 
-                if (filter != null)
-                {
-                    monitoredItem.AttributeId = Attributes.EventNotifier;
-                    monitoredItem.QueueSize = 0;
-                }
+				// add condition fields to any event filter.
+				EventFilter filter = monitoredItem.Filter as EventFilter;
 
-                //monitoredItem.Notification += new MonitoredItemNotificationEventHandler(MonitoredItem_Notification);
+				if (filter != null)
+				{
+					monitoredItem.AttributeId = Attributes.EventNotifier;
+					monitoredItem.QueueSize = 0;
+				}
 
-                m_subscription.AddItem(monitoredItem);
-                m_subscription.ApplyChanges();
-            }
-            catch (Exception ex)
-            {
-                Logger.Error("Failed to add to monitoring: {0}", ex.Message);
-                throw;
-            }
-        }
-        /// <summary>
-        /// avoid stackoverflow, skip first event
-        /// </summary>
-        private bool isHandlingEvent = true;
-        private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+				//monitoredItem.Notification += new MonitoredItemNotificationEventHandler(MonitoredItem_Notification);
 
-        private async void Session_NotificationAsync(Session session, NotificationEventArgs e)
-        {
-            //TODO: configure server events listening.
-            if (isHandlingEvent)
-            {
-                isHandlingEvent = false;
-                return;
-            }
-            isHandlingEvent = true;
+				m_subscription.AddItem(monitoredItem);
+				m_subscription.ApplyChanges();
+			}
+			catch (Exception ex)
+			{
+				Logger.Error("Failed to add to monitoring: {0}", ex.Message);
+				throw;
+			}
+		}
 
-            await _semaphore.WaitAsync();
-            try
-            {
-                await HandleSessionItems();
-            }
-            catch (Exception ex)
-            {
-                Logger.Error(ex.Message, ex);
-            }
-            finally
-            {
-                Thread.Sleep(1200);
-                _semaphore.Release();
-                m_SessionNotification.Invoke(m_session, e);
-                isHandlingEvent = false;
-            }
-        }
+		/// <summary>
+		/// avoid stackoverflow, skip first event
+		/// </summary>
+		private bool isHandlingEvent = true;
+		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
-        private async Task HandleSessionItems()
-        {
-            foreach (var subscriptionItems in m_session.Subscriptions)
-            {
-                foreach (var monitoringItem in subscriptionItems.MonitoredItems)
-                {
-                    string currentNodeId = monitoringItem.ResolvedNodeId.Identifier.ToString();
-                    var nodeConfig = TreeManager.FindNode(currentNodeId);
+		private async void Session_NotificationAsync(Session session, NotificationEventArgs e)
+		{
+			//TODO: configure server events listening.
+			if (isHandlingEvent)
+			{
+				isHandlingEvent = false;
+				return;
+			}
+			isHandlingEvent = true;
 
-                    if (nodeConfig != null)
-                    {
-                        var nodeValueNew = _nm.ReadNodeValue(monitoringItem.ResolvedNodeId);
-                        var node = await _repo.FindByIdAsync(nodeConfig.NodeId);
+			await _semaphore.WaitAsync();
+			try
+			{
+				if (itemsToFind is null)
+					itemsToFind = new HashSet<BaseNode>(await _repo.GetConfigNodes("").ToListAsync());
 
-                        if (node == null && nodeValueNew != null)
-                        {
-                            await AddNewNode(nodeConfig.NodeId, nodeValueNew);
-                            return;
-                        }
+				await HandleSessionItems();
+			}
+			catch (Exception ex)
+			{
+				Logger.Error(ex.Message, ex);
+			}
+			finally
+			{
+				Thread.Sleep(1200);
+				_semaphore.Release();
+				m_SessionNotification.Invoke(m_session, e);
+				isHandlingEvent = false;
+			}
+		}
 
-                        if (nodeValueNew == node.Value || nodeValueNew is null)
-                            return;
+		private HashSet<BaseNode> itemsToFind = null;
 
-                        await AddByMilliseconds(node, nodeValueNew, nodeConfig);
+		private async Task HandleSessionItems()
+		{
+			foreach (var subscriptionItems in m_session.Subscriptions)
+			{
+				foreach (var monitoringItem in subscriptionItems.MonitoredItems)
+				{
+					string currentNodeId = monitoringItem.ResolvedNodeId.Identifier.ToString();
+					var nodeConfig = NodeToFind(currentNodeId);
 
-                        await AddByRange(node, nodeValueNew, nodeConfig);
-                    }
-                }
-            }
-        }
+					if (nodeConfig != null)
+					{
+						var nodeValueNew = _nm.ReadNodeValue(monitoringItem.ResolvedNodeId);
+						var node = await _repo.FindNodeByIdAsync(nodeConfig.NodeId);
 
-        private async Task UpdateNodeValue(NodeData node, string nodeValueNew)
-        {
-            var nodeDto = TreeManager.FindNode(node.NodeId);
-            node.MSecs = nodeDto.Msecs;
-            node.Range = nodeDto.Range;
-            node.NodeType = nodeDto.NodeType;
-            node.Value = nodeValueNew;
-            node.StoreTime = DateTime.UtcNow;
-            await _repo.UpdateAsync(node);
-        }
+						if (node == null && nodeValueNew != null)
+						{
+							await AddNewNode(nodeConfig.NodeId, nodeValueNew, "");
+							return;
+						}
 
-        private async Task AddByMilliseconds(NodeData node, string nodeValueNew, NodeConfig nodeConfig)
-        {
-            if (nodeConfig.Msecs == 0)
-                return;
+						await AddByMilliseconds(node, nodeValueNew, nodeConfig);
+						await AddByRange(node, nodeValueNew, nodeConfig);
+					}
+				}
+			}
+		}
+		private BaseNode NodeToFind(NodeId node)
+		{
+			return itemsToFind.FirstOrDefault(c => c.NodeId == node.Identifier.ToString());
+		}
 
-            var diff = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - new DateTimeOffset(node.StoreTime).ToUnixTimeMilliseconds();
+		private void UpdateNodeValue(NodeData node, string nodeValueNew)
+		{
+			var nodeDto = NodeToFind(node.NodeId);
+			node.Value = nodeValueNew;
+			node.MSecs = string.IsNullOrEmpty(nodeValueNew) ? null : nodeDto.MSecs;
+			node.Range = string.IsNullOrEmpty(nodeValueNew) ? null : nodeDto.Range;
+			node.StoreTime = string.IsNullOrEmpty(nodeValueNew) ? null : DateTime.UtcNow;
+			_repo.UpdateAsync(node);
+		}
+		List<NodeData> tempNodes = new();
 
-            if (nodeConfig.Msecs > 0 && diff >= nodeConfig.Msecs)
-            {
-                Logger.Information($"[monitoring msecs] {nodeConfig.Name} {nodeValueNew} {DateTimeOffset.UtcNow}");
-                await AddNewNode(nodeConfig.NodeId, nodeValueNew);
-                //await UpdateNodeValue(node, nodeValueNew);
-            }
-        }
+		private async Task AddByMilliseconds(NodeData node, string nodeValueNew, BaseNode nodeConfig)
+		{
+			if (nodeConfig.MSecs == 0 || node.StoreTime == null)
+				return;
 
-        List<NodeData> tempNodes = new();
-        private async Task AddByRange(NodeData node, string nodeValueNew, NodeConfig nodeConfig)
-        {
-            if (nodeConfig.Range == 0)
-                return;
+			var diff = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - new DateTimeOffset((DateTime)node.StoreTime).ToUnixTimeMilliseconds();
 
-            int tempDbCount = tempNodes.Where(c => c.NodeId == nodeConfig.NodeId).Count();
+			if (nodeConfig.MSecs > 0 && diff >= nodeConfig.MSecs)
+			{
+				await AddNewNode(nodeConfig.NodeId, nodeValueNew, "msecs");
+				//await UpdateNodeValue(node, nodeValueNew);
+			}
+		}
 
-            // update node per range
-            if (tempDbCount < nodeConfig.Range)
-            {
-                var nodeDto = TreeManager.FindNode(node.NodeId);
+		private async Task AddByRange(NodeData node, string nodeValueNew, BaseNode nodeConfig)
+		{
+			if (nodeConfig.Range == 0)
+				return;
 
-                tempNodes.Add(new()
-                {
-                    Value = nodeValueNew,
-                    Name = nodeDto.Name,
-                    NodeId = nodeConfig.NodeId,
-                    MSecs = nodeDto.Msecs,
-                    Range = nodeDto.Range,
-                    NodeType = nodeDto.NodeType,
-                    StoreTime = DateTime.UtcNow
-                });
-            }
-            else
-            {
-                //await UpdateNodeValue(node, nodeValueNew);
-                Logger.Information($"[monitoring range] {nodeConfig.Name} {nodeValueNew} {nodeValueNew} {DateTimeOffset.UtcNow}");
-                await AddNewNode(nodeConfig.NodeId, nodeValueNew);
-                tempNodes.RemoveAll(c => c.NodeId == nodeConfig.NodeId);
-            }
-        }
+			int tempDbCount = tempNodes.Where(c => c.NodeId == nodeConfig.NodeId).Count();
 
-        private async Task AddNewNode(string currentNodeId, string nodeValueNew)
-        {
-            var nodeDto = TreeManager.FindNode(currentNodeId);
-            NodeData entity = new()
-            {
-                Value = nodeValueNew,
-                NodeId = nodeDto.NodeId,
-                Name = nodeDto.Name,
-                MSecs = nodeDto.Msecs,
-                Range = nodeDto.Range,
-                NodeType = nodeDto.NodeType,
-                StoreTime = DateTime.UtcNow
-            };
+			// update node per range
+			if (tempDbCount < nodeConfig.Range)
+			{
+				var nodeDto = NodeToFind(node.NodeId);
 
-            if (Extensions.ReadSettings().SaveToDb)
-            {
-                _repo.AddAsync(entity).Wait();
-            }
+				tempNodes.Add(new NodeData(nodeDto, nodeValueNew));
+			}
+			else
+			{
+				//await UpdateNodeValue(node, nodeValueNew);
+				await AddNewNode(nodeConfig.NodeId, nodeValueNew, "range");
+				tempNodes.RemoveAll(c => c.NodeId == nodeConfig.NodeId);
+			}
+		}
 
-            await messageService.SendMessage(entity);
-            await _azureMS.SendMessageAsync(entity);
-        }
-    }
+		private async Task AddNewNode(string currentNodeId, string nodeValueNew, string monitorCategory)
+		{
+			var nodeDto = NodeToFind(currentNodeId);
+			NodeData entity = new(nodeDto, nodeValueNew);
+
+			Logger.Information($"[monitoring {monitorCategory}] {nodeDto.Name} {nodeValueNew} {DateTimeOffset.UtcNow}");
+			_repo.AddMonitoringValue(entity).Wait();
+			await signalRService.SendNodeAction(entity);
+			await _azureMS.SendNodeAsync(entity);
+		}
+	}
 }

@@ -6,6 +6,6 @@ namespace QIA.Plugin.OpcClient.Services.Interfaces
     public interface IAzureMessageService
     {
         Task ReadMessageAsync();
-        Task SendMessageAsync(NodeData message);
+        Task SendNodeAsync(NodeData message);
     }
 }

@@ -29,12 +29,16 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { BehaviorSubject } from 'rxjs';
+import { OpcSettingsComponent } from './opc-settings/opc-settings.component';
+import { NavbarComponent } from './core/navbar/navbar.component';
 @NgModule({
   declarations: [
     AppComponent,
     ChannelComponent,
     ChannelsManagerComponent,
     NodeTreeComponent,
+    OpcSettingsComponent,
+    NavbarComponent,
   ],
   imports: [
     BrowserModule,

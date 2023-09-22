@@ -12,28 +12,30 @@ import { AppService } from '../app.service';
   templateUrl: './channels-manager.component.html',
   styleUrls: ['./channels-manager.component.scss'],
 })
-export class ChannelsManagerComponent implements AfterViewInit {
-  channelsArr: string[] = ['All', 'Group1', 'Group2'];
+export class ChannelsManagerComponent implements OnInit {
+  channelsArr: any[] = [];
 
   @ViewChild('channelList') channelArrElem: ElementRef;
 
-  constructor(private appService: AppService) {}
+  constructor(private appService: AppService) {
+    this.appService.signalrInit();
+  }
 
-  ngAfterViewInit(): void {
-    this.selectChannel(this.channelsArr[0]);
+  ngOnInit(): void {
+    this.appService.getChannels.subscribe((data) => {
+      this.channelsArr = data;
+    });
   }
 
   selectChannel(channel: string) {
     this.appService.signalReset();
+
     let childrens = this.channelArrElem.nativeElement.children;
     for (let item of childrens) {
       item.classList.remove('channel-selected');
-
       let value = item.getElementsByClassName('channel-text')[0].innerText;
-      if (channel === this.channelsArr[0] && channel === value) {
-        this.appService.joinPublic();
-        item.classList.add('channel-selected');
-      } else if (channel === value && channel !== this.channelsArr[0]) {
+
+      if (value === channel) {
         item.classList.add('channel-selected');
         this.appService.joinNewGroup(channel);
       }
@@ -42,12 +44,14 @@ export class ChannelsManagerComponent implements AfterViewInit {
 
   addGroup(nameElem: any) {
     let name = nameElem.value;
-    if (name.length > 0) this.channelsArr.push(name);
+    if (name.length > 0) this.channelsArr.push({ Name: name });
     nameElem.value = '';
+    this.appService.addChannelWeb(name);
   }
 
   removeGroup(name: string) {
     const index = this.channelsArr.indexOf(name);
     const x = this.channelsArr.splice(index, 1);
+    this.appService.removeChannelWeb(name);
   }
 }

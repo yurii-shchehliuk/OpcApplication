@@ -10,7 +10,10 @@ namespace QIA.Plugin.OpcClient.Database
         {
         }
 
-        public DbSet<NodeData> SampleNodes { get; set; }
+        public DbSet<BaseNode> NodesConfig { get; set; }
+        public DbSet<NodeData> MonitorNodes{ get; set; }
+        public DbSet<Group> Groups { get; set; }
+        public DbSet<AppSettings> AppSettings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

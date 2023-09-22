@@ -1,19 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace QIA.Plugin.OpcClient.Entities
 {
     /// <summary>
-    /// Nodes graph
+    /// UI nodes graph
     /// </summary>
-    public class TreeNode<T>
+    public class TreeNode 
     {
-        public T Data { get; set; }
-        public HashSet<TreeNode<T>> Children { get; set; }
-
-        public TreeNode(T value)
-        {
-            Data = value;
-            Children = new HashSet<TreeNode<T>>();
-        }
+        public string NodeId { get; set; }
+        public string Name { get; set; }
+        public HashSet<TreeNode> Children { get; set; } = new HashSet<TreeNode>();
     }
 }

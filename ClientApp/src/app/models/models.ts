@@ -1,7 +1,7 @@
 //income node
 export interface NodeData extends NodeBase {
-  StoreTime: string;
-  Value: number;
+  storeTime: string;
+  value: number;
 }
 
 //outcome node
@@ -10,14 +10,19 @@ export interface NewNode extends NodeBase {
 }
 
 interface NodeBase {
-  NodeId: string;
-  Name: string;
-  Range: number | null;
-  MSecs: number | null;
-  Group: string;
+  nodeId: string;
+  name: string;
+  range: number | null;
+  mSecs: number | null;
+  group: string;
+}
+
+export interface TreeNode {
+  nodeId: string;
+  name: string;
 }
 
 export enum MonitorAction {
   Monitor,
-  Unpominotr,
+  Unmomonitor,
 }

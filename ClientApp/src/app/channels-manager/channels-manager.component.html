@@ -1,9 +1,9 @@
 <section>
     <h2>Hub source</h2>
     <div #channelList class="channelList">
-        <div routerLink="." *ngFor="let channel of channelsArr" class="channel" (click)="selectChannel(channel)">
-            <p class="channel-text">{{channel}}</p>
-            <span aria-hidden="true" (click)="removeGroup(channel)">&times;</span>
+        <div routerLink="." *ngFor="let channel of channelsArr" class="channel" (click)="selectChannel(channel.Name)">
+            <p class="channel-text">{{channel.Name}}</p>
+            <span aria-hidden="true" (click)="removeGroup(channel.Name)">&times;</span>
         </div>
     </div>
 

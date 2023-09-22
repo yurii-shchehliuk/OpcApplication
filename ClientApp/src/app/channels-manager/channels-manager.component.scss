@@ -1,4 +1,6 @@
 section {
+  min-width: min-content;
+  width: 13em;
   h2 {
     padding: 1em;
   }
@@ -50,7 +52,7 @@ section {
     span {
       border-top-left-radius: 0;
       border-bottom-left-radius: 0;
-      
+
       &:hover {
         cursor: pointer;
       }

@@ -4,7 +4,6 @@ using Azure.Messaging.EventHubs.Processor;
 using Azure.Messaging.EventHubs.Producer;
 using Azure.Storage.Blobs;
 using QIA.Plugin.OpcClient.Core;
-using QIA.Plugin.OpcClient.Core.Settings;
 using QIA.Plugin.OpcClient.Entities;
 using QIA.Plugin.OpcClient.Services.Interfaces;
 using System;
@@ -27,7 +26,7 @@ namespace QIA.Plugin.OpcClient.Services
                new AzureNamedKeyCredential(azureEventHub.EventHubSender.PolicyName, azureEventHub.EventHubSender.PrimaryKey));
         }
 
-        public async Task SendMessageAsync(NodeData message)
+        public async Task SendNodeAsync(NodeData message)
         {
             try
             {

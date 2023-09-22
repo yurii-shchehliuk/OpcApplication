@@ -24,16 +24,19 @@ export class ChecklistDatabase {
 
   constructor(private appService: AppService) {
     this.initialize();
-    this.appService.getGraphData().subscribe((data) => {
-      // Now you can use this.graphData in your component
+    this.appService.getGraphData.subscribe((data) => {
       const dataTree = this.buildFileTree(data, 0);
       this.dataChange.next(dataTree);
+    });
+
+    let sub = this.appService.getChannel.subscribe((data: string) => {
+      // reset graph on channel change
+      this.dataChange.next([]);
+      this.graphData = {};
     });
   }
 
   initialize() {
-    // pull tree data from signalR
-
     // Build the tree nodes from Json object. The result is a list of `TodoItemNode` with nested
     //     file node as children.
     const data = this.buildFileTree(this.graphData, 0);
@@ -106,6 +109,7 @@ export class NodeTreeComponent {
     true /* multiple */
   );
 
+  appSettings: any = {};
   constructor(
     private _database: ChecklistDatabase,
     private appService: AppService
@@ -126,13 +130,19 @@ export class NodeTreeComponent {
     );
 
     _database.dataChange.subscribe((data) => {
-      console.log(data);
       this.dataSource.data = data;
+    });
+
+    //TODO:
+    this.appService.getAppSettings.subscribe((data: any) => {
+      // reset graph on channel change
+      this.appSettings = data.appSettings;
+      this.reloadTree();
     });
   }
 
-  loadTree() {
-    this.appService.loadGraphAction('All', 'graph-new.json');
+  reloadTree() {
+    this.appService.getGraphWeb(this.appSettings.createFullTree);
   }
 
   //#region init

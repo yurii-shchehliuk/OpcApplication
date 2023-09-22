@@ -1,0 +1,17 @@
+section {
+  h2 {
+    padding: 1em;
+  }
+  form {
+    margin: 1em;
+
+    .form-group {
+      margin: 0.5em;
+
+      .form-check-input {
+        margin-right: 0.5em;
+      }
+    }
+  }
+}
+

@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QIA.Plugin.OpcClient", "QIA
 EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{69BFA721-CBBA-44DE-8CC2-D01A2A8493A0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QIA.Opc.Client", "..\QIA.Opc.Client\QIA.Opc.Client.csproj", "{7DD4324D-038F-456C-A77D-C1CA61EA550D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{69BFA721-CBBA-44DE-8CC2-D01A2A8493A0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{69BFA721-CBBA-44DE-8CC2-D01A2A8493A0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{69BFA721-CBBA-44DE-8CC2-D01A2A8493A0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7DD4324D-038F-456C-A77D-C1CA61EA550D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7DD4324D-038F-456C-A77D-C1CA61EA550D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7DD4324D-038F-456C-A77D-C1CA61EA550D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7DD4324D-038F-456C-A77D-C1CA61EA550D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
