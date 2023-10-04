@@ -1,0 +1,36 @@
+<div class="container">
+  <nav class="navbar navbar-light bg-light justify-content-between">
+    <div class="d-inline">
+      <input class="form-control d-inline w-auto" type="search" placeholder="Search" aria-label="Search">
+      <button class="btn btn-outline-success d-inline " type="submit">Search</button>
+    </div>
+    <div>
+      <button class="btn btn-outline-secondary reloadTree" (click)="getNodeChildres(null)">
+        <i class="bi bi-bootstrap-reboot"></i>
+      </button>
+    </div>
+  </nav>
+
+  <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
+    <mat-tree-node *matTreeNodeDef="let node" matTreeNodeToggle matTreeNodePadding>
+      <div class="mat-cell">{{node.item.nodeClass}}</div>
+      <div class="mat-cell">{{node.item.nodeId}}</div>
+      <div class="mat-cell">{{node.item.displayName}}</div>
+      <mat-label class="d-flex" (change)="todoLeafItemSelectionToggle(node)">
+        : {{node.item}}
+      </mat-label>
+    </mat-tree-node>
+
+    <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
+      <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'Toggle ' + node.item" (click)="getNodeChildres(node.item)">
+        <mat-icon class="mat-icon-rtl-mirror">
+          {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+        </mat-icon>
+      </button>
+      <div class="mat-cell">{{node.item.nodeClass}}</div>
+      <div class="mat-cell">{{node.item.nodeId}}</div>
+      <div class="mat-cell">{{node.item.displayName}}</div>
+      <mat-label (change)="todoItemSelectionToggle(node)">{{node.item}} {{node.item.NodeId}} </mat-label>
+    </mat-tree-node>
+  </mat-tree>
+</div>

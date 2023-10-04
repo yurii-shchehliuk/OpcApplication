@@ -1,5 +1,4 @@
 import { Component, HostListener } from '@angular/core';
-import { AppService } from '../app.service';
 import { FormBuilder, Validators } from '@angular/forms';
 import { SidenavService } from '../shared/sidenav-service.service';
 
@@ -18,58 +17,57 @@ export class OpcSettingsComponent {
   appSettingsForm = this.initAppSettings();
 
   constructor(
-    private appService: AppService,
     private fb: FormBuilder,
     public sidenavService: SidenavService
   ) {
-    this.appService.getAppSettings.subscribe((data) => {
-      if (!data.appSettings) {
-        this.appSettingsForm = this.initAppSettings();
-        return;
-      }
-      console.log(data);
+    // this.appService.getAppSettings.subscribe((data) => {
+    //   if (!data.appSettings) {
+    //     this.appSettingsForm = this.initAppSettings();
+    //     return;
+    //   }
+    //   console.log(data);
 
-      this.appSettings = JSON.parse(JSON.stringify(data.appSettings));
-      console.log(this.appSettings);
+    //   this.appSettings = JSON.parse(JSON.stringify(data.appSettings));
+    //   console.log(this.appSettings);
 
-      this.appSettingsForm = this.fb.group({
-        saveToAzure: [this.appSettings.saveToAzure],
-        saveToDb: [this.appSettings.saveToDb],
-        targetTable: [this.appSettings.targetTable],
-        createFullTree: [this.appSettings.createFullTree],
-        opcUrl: [this.appSettings.opcUrl],
-        signalR: this.fb.group({
-          hubUrl: [this.appSettings.signalR.hubUrl],
-        }),
-        dbConnectionString: [this.appSettings.dbConnectionString],
-        azureEventHub: this.fb.group({
-          endpointUrl: [this.appSettings.azureEventHub.endpointUrl],
-          hubName: [this.appSettings.azureEventHub.hubName],
-          eventHubSender: this.fb.group({
-            policyName: [
-              this.appSettings.azureEventHub.eventHubSender.policyName,
-            ],
-            primaryKey: [
-              this.appSettings.azureEventHub.eventHubSender.primaryKey,
-            ],
-          }),
-          // eventHubConsumer: this.fb.group({
-          //   conntainerName: this.appSettings.azureEventHub.ConntainerName,
-          //   blobConnString: this.appSettings.azureEventHub.BlobConnString,
-          //   consumerGroup: this.appSettings.azureEventHub.ConsumerGroup,
-          //   policyName: this.appSettings.azureEventHub.PolicyName,
-          //   primaryKey: this.appSettings.azureEventHub.PrimaryKey,
-          // }),
-        }),
-      });
-    });
+    //   this.appSettingsForm = this.fb.group({
+    //     saveToAzure: [this.appSettings.saveToAzure],
+    //     saveToDb: [this.appSettings.saveToDb],
+    //     targetTable: [this.appSettings.targetTable],
+    //     createFullTree: [this.appSettings.createFullTree],
+    //     opcUrl: [this.appSettings.opcUrl],
+    //     signalR: this.fb.group({
+    //       hubUrl: [this.appSettings.signalR.hubUrl],
+    //     }),
+    //     dbConnectionString: [this.appSettings.dbConnectionString],
+    //     azureEventHub: this.fb.group({
+    //       endpointUrl: [this.appSettings.azureEventHub.endpointUrl],
+    //       hubName: [this.appSettings.azureEventHub.hubName],
+    //       eventHubSender: this.fb.group({
+    //         policyName: [
+    //           this.appSettings.azureEventHub.eventHubSender.policyName,
+    //         ],
+    //         primaryKey: [
+    //           this.appSettings.azureEventHub.eventHubSender.primaryKey,
+    //         ],
+    //       }),
+    //       // eventHubConsumer: this.fb.group({
+    //       //   conntainerName: this.appSettings.azureEventHub.ConntainerName,
+    //       //   blobConnString: this.appSettings.azureEventHub.BlobConnString,
+    //       //   consumerGroup: this.appSettings.azureEventHub.ConsumerGroup,
+    //       //   policyName: this.appSettings.azureEventHub.PolicyName,
+    //       //   primaryKey: this.appSettings.azureEventHub.PrimaryKey,
+    //       // }),
+    //     }),
+    //   });
+    // });
   }
 
   saveSettings() {
     if (!this.appSettingsForm.valid) {
       return;
     }
-    this.appService.saveSettings(this.appSettingsForm.value);
+    // this.appService.saveSettings(this.appSettingsForm.value);
   }
 
   initAppSettings() {

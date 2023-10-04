@@ -1,0 +1,81 @@
+<section class="container">
+    <div class="container-chart">
+        <mat-card>
+            <mat-card-title>
+                <p class="d-inline">
+                    OPC data chart [{{channelSource}}]
+                </p>
+                <div class="settingsToggle">
+                    <button class="btn btn-outline-secondary">
+                        <i class="bi bi-gear"></i>
+                    </button>
+                </div>
+            </mat-card-title>
+            <mat-card-subtitle>
+                <p class="d-inline">
+                    Realtime OPC data channels monitor
+                </p>
+                <div class="refresh-chart">
+                    <button class="btn btn-outline-secondary reloadTree">
+                        <i class="bi bi-bootstrap-reboot" (click)="refreshChart($event)"></i>
+                    </button>
+                </div>
+            </mat-card-subtitle>
+        </mat-card>
+        <canvas id="myChart" chart></canvas>
+    </div>
+
+    <div class="container-details">
+        <table>
+            <tr>Monitor node</tr>
+            <tr>
+                <td>
+                    <mat-form-field>
+                        <mat-label>Node Id</mat-label>
+                        <input matInput [(ngModel)]="newNode.nodeId">
+                    </mat-form-field>
+                </td>
+                <td>
+                    <mat-form-field>
+                        <mat-label>Name</mat-label>
+                        <input matInput type="text" [(ngModel)]="newNode.displayName" />
+                    </mat-form-field>
+                </td>
+                <td>
+                    <mat-form-field>
+                        <mat-label>Range</mat-label>
+                        <input matInput type="number" [(ngModel)]="newNode.range" />
+                    </mat-form-field>
+                </td>
+                <td>
+                    <mat-form-field>
+                        <mat-label>MSecs</mat-label>
+                        <input matInput type="number" class="col-md-3" [(ngModel)]="newNode.mSecs" />
+                    </mat-form-field>
+                </td>
+                <td class="newNode"><button mat-raised-button color="primary" (click)="nodeMonitor()">Add</button></td>
+            </tr>
+            <br>
+            <tr>
+                <th>Node Id</th>
+                <th>Name</th>
+                <th>Value</th>
+                <th>Range/MSecs</th>
+                <th></th>
+            </tr>
+            <tr *ngFor="let item of nodeArray" class="node">
+                <td>{{item.nodeId}}</td>
+                <td>{{item.displayName}}</td>
+                <td class="node-value">{{getNodeValue(item.nodeId)}}</td>
+                <td>{{item.range}}/{{item.mSecs}}</td>
+                <td class="node-action">
+                    <i (click)="hideNode($event, item.nodeId)" class="bi bi-send-plus h4 me-2"></i>
+                    <i (click)="hideNode($event, item.nodeId)" class="bi bi-eye h4 me-2"></i>
+                    <i (click)="removeNode(item.nodeId)" class="bi bi-trash h4"></i>
+                </td>
+            </tr>
+        </table>
+    </div>
+</section>
+
+<app-node-tree></app-node-tree>

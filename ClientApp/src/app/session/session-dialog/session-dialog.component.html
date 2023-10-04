@@ -1,0 +1,19 @@
+<h1 mat-dialog-title>Session</h1>
+<mat-dialog-content>
+    <mat-form-field>
+        <mat-label>Name</mat-label>
+        <input matInput [(ngModel)]="sessionData.name">
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>URL</mat-label>
+        <input matInput [(ngModel)]="sessionData.endpointUrl">
+    </mat-form-field>
+    <mat-form-field [hidden]="addNew">
+        <mat-label>id</mat-label>
+        <input matInput [(ngModel)]="sessionData.sessionId" readonly>
+    </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+    <button mat-flat-button mat-dialog-close [hidden]="addNew" (click)="removeGroup()">Delete</button>
+    <button mat-flat-button mat-dialog-close (click)="addGroup()">Save</button>
+</mat-dialog-actions>

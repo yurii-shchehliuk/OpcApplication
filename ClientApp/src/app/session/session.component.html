@@ -1,0 +1,23 @@
+<section>
+    <h2>Hub source</h2>
+    <div #channelList class="channelList">
+        <div routerLink="." *ngFor="let channel of channelsArr" class="channel" (click)="selectChannel(channel)">
+            <p class="channel-text">{{channel.name}}</p>
+            <span aria-hidden="true" (click)="openDialog($event,channel)"><i class="bi bi-pencil"></i></span>
+        </div>
+    </div>
+
+    <div class="input-group mb-3 newChannel">
+        <button button mat-raised-button color="primary" (click)="openDialog($event)">Add</button>
+    </div>
+
+    <!-- <mat-expansion-panel (opened)="panelOpenState = true" (closed)="panelOpenState = false">
+        <mat-expansion-panel-header>
+            <mat-panel-title>
+                Subscriptions
+            </mat-panel-title>
+        </mat-expansion-panel-header>
+        <p>I'm visible because I am open</p>
+       
+    </mat-expansion-panel> -->
+</section>

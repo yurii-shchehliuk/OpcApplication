@@ -1,0 +1,40 @@
+.container {
+  &-chart {
+    mat-card {
+      padding: 0.5em 1em;
+
+      .settingsToggle {
+        float: right;
+        display: inline;
+      }
+      .refresh-chart {
+        display: inline;
+        float: right;
+      }
+    }
+
+    canvas {
+      margin-top: 1.5em;
+    }
+  }
+
+  &-details {
+    .newNode {
+      padding-left: 1.5em;
+    }
+    .node {
+      &-action {
+        padding-left: 1.5em;
+        i {
+          &:hover {
+            cursor: pointer;
+          }
+        }
+      }
+    }
+  }
+}
+
+.background-hidden {
+  background-color: whitesmoke;
+}

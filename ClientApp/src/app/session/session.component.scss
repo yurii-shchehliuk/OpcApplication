@@ -1,0 +1,63 @@
+section {
+  min-width: min-content;
+  width: 13em;
+  h2 {
+    padding: 1em;
+  }
+
+  .channelList {
+    .channel {
+      padding: 0.7em 1em;
+      &-text {
+        &:hover {
+          cursor: pointer;
+        }
+      }
+      p {
+        display: inline-block;
+        margin: 0;
+      }
+      span {
+        float: right;
+        //   visibility: hidden;
+        border: 1px solid transparent;
+        border-radius: 50%;
+        width: 1.7em;
+        height: 1.7em;
+        padding: 0 0.35em;
+        &:hover {
+          cursor: pointer;
+          background: lightgrey;
+        }
+        i {
+          //   margin-left: -0.1em;
+        }
+      }
+
+      &-selected {
+        background-color: whitesmoke;
+      }
+
+      &:hover {
+        background-color: rgb(238, 237, 237);
+        span {
+          visibility: visible;
+        }
+      }
+    }
+  }
+
+  .newChannel {
+    padding: 0 1em 1em;
+    margin-top: 0.7em;
+
+    span {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+
+      &:hover {
+        cursor: pointer;
+      }
+    }
+  }
+}

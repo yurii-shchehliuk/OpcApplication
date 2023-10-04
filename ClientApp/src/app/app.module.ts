@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { ErrorHandler, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 import { AppComponent } from './app.component';
@@ -12,33 +12,35 @@ import { MatListModule } from '@angular/material/list';
 import { MatInputModule } from '@angular/material/input';
 import { MatTreeModule } from '@angular/material/tree';
 
-import { HttpClientModule } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { ChannelComponent } from './channel/channel.component';
-import { ChannelsManagerComponent } from './channels-manager/channels-manager.component';
-import { NodeTreeComponent } from './node-tree/node-tree.component';
 
-import { SelectionModel } from '@angular/cdk/collections';
-import { FlatTreeControl } from '@angular/cdk/tree';
-import { Component, Injectable } from '@angular/core';
-import {
-  MatTreeFlatDataSource,
-  MatTreeFlattener,
-} from '@angular/material/tree';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { BehaviorSubject } from 'rxjs';
 import { OpcSettingsComponent } from './opc-settings/opc-settings.component';
 import { NavbarComponent } from './core/navbar/navbar.component';
+import { ErrorInterceptor } from './application/ErrorInterceptor';
+import { GlobalErrorHandler } from './application/GlobalErrorHandler';
+import { SessionComponent } from './session/session.component';
+import { SessionDialogComponent } from './session/session-dialog/session-dialog.component';
+import { NodeTreeComponent } from './node-chart/node-tree/node-tree.component';
+import { FooterComponent } from './core/footer/footer.component';
+import { NodeChartComponent } from './node-chart/node-chart.component';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatExpansionModule } from '@angular/material/expansion';
+
 @NgModule({
   declarations: [
     AppComponent,
-    ChannelComponent,
-    ChannelsManagerComponent,
     NodeTreeComponent,
     OpcSettingsComponent,
     NavbarComponent,
+    SessionComponent,
+    SessionDialogComponent,
+    NodeChartComponent,
+    FooterComponent,
   ],
   imports: [
     BrowserModule,
@@ -56,11 +58,17 @@ import { NavbarComponent } from './core/navbar/navbar.component';
     MatCardModule,
     MatSidenavModule,
     MatButtonModule,
+    MatDialogModule,
+    MatExpansionModule,
+    //
     HttpClientModule,
     ReactiveFormsModule,
     FormsModule,
   ],
-  providers: [],
+  providers: [
+    { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },
+    // { provide: ErrorHandler, useClass: GlobalErrorHandler },
+  ],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

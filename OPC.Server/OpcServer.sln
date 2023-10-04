@@ -5,7 +5,7 @@ VisualStudioVersion = 17.5.33516.290
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpcServer", "OpcServer\OpcServer.csproj", "{9C58BF81-7512-4E4B-A8AB-CDD465CB41D4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SignalR.Hub", "..\SignalR.Hub\SignalR.Hub.csproj", "{A45B2AD0-FD75-452E-BD2D-E1FA3835CD78}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SignalR.Hub", "SignalR.Hub\SignalR.Hub.csproj", "{9ABCD210-F708-49B9-AED7-59611C9A209A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,10 +17,10 @@ Global
 		{9C58BF81-7512-4E4B-A8AB-CDD465CB41D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9C58BF81-7512-4E4B-A8AB-CDD465CB41D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9C58BF81-7512-4E4B-A8AB-CDD465CB41D4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A45B2AD0-FD75-452E-BD2D-E1FA3835CD78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A45B2AD0-FD75-452E-BD2D-E1FA3835CD78}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A45B2AD0-FD75-452E-BD2D-E1FA3835CD78}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A45B2AD0-FD75-452E-BD2D-E1FA3835CD78}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9ABCD210-F708-49B9-AED7-59611C9A209A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9ABCD210-F708-49B9-AED7-59611C9A209A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9ABCD210-F708-49B9-AED7-59611C9A209A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9ABCD210-F708-49B9-AED7-59611C9A209A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
