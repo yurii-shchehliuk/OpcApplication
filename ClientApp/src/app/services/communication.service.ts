@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { environment } from 'src/enviroments/enviroment';
-import { NodeData } from '../models/nodeModels';
+import { NodeValue } from '../models/nodeModels';
 import * as signalR from '@microsoft/signalr';
 
 @Injectable({
@@ -11,9 +11,9 @@ export class CommunicationService {
   baseUrl = environment.server;
 
   private hubConnection: signalR.HubConnection;
-  private nodeSubject: Subject<NodeData> = new Subject<NodeData>();
+  private nodeSubject: Subject<NodeValue> = new Subject<NodeValue>();
 
-  get getNodeObservable(): Observable<NodeData> {
+  get getNodeObservable(): Observable<NodeValue> {
     return this.nodeSubject.asObservable();
   }
 
@@ -40,9 +40,9 @@ export class CommunicationService {
     }
   }
 
-  private listenNodesSubscription(method: string = 'NodeReceived') {
-    this.hubConnection.on(method, (data: any) => {
-      let result = data as NodeData;
+  private listenNodesSubscription(method: string = 'SendNodeAction') {
+    this.hubConnection.on(method, (data: NodeValue) => {
+      let result = data as NodeValue;
       result.storeTime = new Date(data.storeTime).toLocaleString();
       this.nodeSubject.next(result);
     });

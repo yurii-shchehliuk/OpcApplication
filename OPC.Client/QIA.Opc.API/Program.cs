@@ -1,20 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 using Opc.Ua;
-using Qia.Opc.Communication;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
 using Qia.Opc.Infrastrucutre.Services.Communication;
 using Qia.Opc.Infrastrucutre.Services.OPCUA;
 using Qia.Opc.OPCUA.Connector;
 using Qia.Opc.OPCUA.Connector.Managers;
-using Qia.Opc.OPCUA.Connector.ServicesHosted;
 using Qia.Opc.Persistence;
 using Qia.Opc.Persistence.Repository;
+using QIA.Opc.API.Core;
 using System.Text.Json;
 
 namespace QIA.Opc.API
 {
-    public class Program
+	public class Program
 	{
 		public async static Task Main(string[] args)
 		{
@@ -24,11 +23,11 @@ namespace QIA.Opc.API
 			var builder = WebApplication.CreateBuilder(args);
 			LoggerManager.InitLogging();
 			// Add services to the container.
-			builder.Services.AddControllers();
-			//.AddJsonOptions(options =>
-			// {
-			//	 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-			// });
+			builder.Services.AddControllers()
+			.AddJsonOptions(options =>
+			 {
+				 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+			 });
 
 			var configBuilder = new ApplicationConfigBuilder();
 			configBuilder.Init().Wait();
@@ -56,7 +55,7 @@ namespace QIA.Opc.API
 
 			// hosted
 			//builder.Services.AddHostedService<SessionCleanupService>();
-			builder.Services.AddHostedService<SignalrHosted>();
+			//builder.Services.AddHostedService<SignalrHosted>();
 
 			// database
 			builder.Services.AddScoped(typeof(IDataRepository<>), typeof(DataRepository<>));
@@ -92,6 +91,7 @@ namespace QIA.Opc.API
 				app.UseHsts();
 			}
 
+			app.UseMiddleware<SessionMiddleware>();
 			app.UseMiddleware<ExceptionMiddleware>();
 			app.UseCors(webClient);
 			app.UseHttpsRedirection();
@@ -106,9 +106,9 @@ namespace QIA.Opc.API
 
 			app.UseEndpoints(endpoints =>
 			{
+				endpoints.MapHub<ChatHub>("/chathub");
+
 				endpoints.MapControllers();
-
-
 				endpoints.MapControllerRoute(
 						name: "default",
 						pattern: "{controller}/{action=Index}/{id?}");

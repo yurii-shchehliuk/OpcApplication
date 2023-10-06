@@ -5,6 +5,6 @@ namespace Qia.Opc.Infrastrucutre.Interfaces
 	public interface IAzureMessageService
 	{
 		Task ReadMessageAsync();
-		Task SendNodeAsync(NodeData message);
+		Task SendNodeAsync(NodeValue message);
 	}
 }

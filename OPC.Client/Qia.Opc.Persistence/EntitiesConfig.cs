@@ -10,17 +10,17 @@ namespace Qia.Opc.Persistence
 		public void Configure(EntityTypeBuilder<NodeReferenceEntity> builder)
 		{
 			builder.HasKey(e => e.NodeId);
-			builder.HasIndex(e => e.NodeId);
+			builder.HasIndex(e => e.NodeId).IsUnique();
 		}
 	}
 
-	public class NodeDataEntity : IEntityTypeConfiguration<NodeData>
+	public class NodeDataEntity : IEntityTypeConfiguration<NodeValue>
 	{
-		public void Configure(EntityTypeBuilder<NodeData> builder)
+		public void Configure(EntityTypeBuilder<NodeValue> builder)
 		{
 			builder.ToTable(StaticSettings.GetTargetTbl);
 			builder.HasKey(e => e.Id);
-			builder.HasIndex(e => e.NodeId).IsUnique();
+			builder.HasIndex(e => e.NodeId);
 		}
 	}
 }

@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { Chart, ChartDataset, ChartConfiguration } from 'chart.js';
 import { Subscription } from 'rxjs';
-import { NodeData } from '../models/nodeModels';
+import { NodeValue, NodeReference } from '../models/nodeModels';
 import { CommunicationService } from '../services/communication.service';
 import { NodeService } from '../services/node.service';
 import { SessionService } from '../services/session.service';
@@ -15,22 +15,13 @@ import { MatDialog } from '@angular/material/dialog';
 })
 export class NodeChartComponent {
   chart: Chart;
-  nodeArray: any[] = [];
+  nodeArray: NodeReference[] = [];
   datasets: ChartDataset[] = [];
   labels: string[] = [];
   channelSource = '';
 
   subscriptions: Subscription[] = [];
-
-  newNode: any = {
-    nodeId: '',
-    browseName: '',
-    displayName: '',
-    nodeClass: 0,
-    sessionName: '',
-    mSecs: null,
-    range: null,
-  };
+  newNode: NodeReference = (<Partial<NodeReference>>{}) as NodeReference;
 
   constructor(
     private sessionService: SessionService,
@@ -44,7 +35,6 @@ export class NodeChartComponent {
     this.createChart();
     // listen from selected channel
     // signalr connection is created in channel-monitor
-    this.nodeService.getConfigNodes();
     this.sessionService.getChannel.subscribe((data: string) => {
       this.channelSource = data;
 
@@ -52,28 +42,26 @@ export class NodeChartComponent {
       this.datasets = [];
       this.labels = [];
 
-      this.nodeService.configNodes$.subscribe((nodeDataArr: any) => {
-        this.nodeArray = [];
+      this.nodeService.configNodes$.subscribe(
+        (nodeRefList: NodeReference[]) => {
+          this.nodeArray = [];
 
-        nodeDataArr.map((nodeData: any) => {
-          this.nodeArray.push(nodeData);
-          this.pushEventToChartData(nodeData);
-        });
-      });
+          nodeRefList.map((NodeValue: NodeReference) => {
+            this.nodeArray.push(NodeValue);
+          });
+        }
+      );
 
       this.chart.destroy();
       this.createChart();
     });
 
     // Fill up chart with data if not present ignore
-    this.communicationService.getNodeObservable.subscribe((nodeData) => {
-      if (
-        this.nodeArray.findIndex((c) => c.nodeId === nodeData.nodeId) === -1
-      ) {
-        this.nodeArray.push(nodeData);
+    this.communicationService.getNodeObservable.subscribe(
+      (NodeValue: NodeValue) => {
+        this.pushEventToChartData(NodeValue);
       }
-      this.pushEventToChartData(nodeData);
-    });
+    );
 
     //subscriptions
   }
@@ -89,15 +77,31 @@ export class NodeChartComponent {
     this.chart.update();
   }
 
-  nodeMonitor() {
-    this.newNode.sessionName = this.channelSource;
-
-    this.subscriptionService.createSubs(this.newNode);
+  subscribeToNode(event: any, node: NodeReference) {
+    if (node.subscriptionId) {
+      this.subscriptionService.deleteSubs(node.subscriptionId).subscribe(() => {
+        let oldNodeRef = this.nodeArray.findIndex(
+          (c) => c.nodeId === node.nodeId
+        );
+        this.nodeArray[oldNodeRef].subscriptionId = null;
+      });
+    } else {
+      this.subscriptionService.createSubs(node).subscribe((res) => {
+        let oldNodeRef = this.nodeArray.findIndex(
+          (c) => c.nodeId === node.nodeId
+        );
+        this.nodeArray[oldNodeRef] = res;
+      });
+    }
   }
 
-  removeNode(nodeId: string) {
-    this.subscriptionService.deleteSubs(nodeId);
-    this.nodeService.deleteConfigNode(nodeId);
+  addConfigNode() {
+    this.nodeService.addConfigNode(this.newNode);
+  }
+
+  removeNode(node: NodeReference) {
+    this.subscriptionService.deleteSubs(node.subscriptionId!).subscribe();
+    this.nodeService.deleteConfigNode(node.nodeId);
     this.refreshChart();
   }
 
@@ -110,20 +114,24 @@ export class NodeChartComponent {
     //hide
     dataset.hidden = !dataset.hidden;
     this.chart.update();
-    //change text
-    // dataset.hidden
-    //   ? (event.target.innerHTML = 'Show')
-    //   : (event.target.innerHTML = 'Hide');
 
     //add background
     event.target.parentElement.parentElement.classList.toggle(
       'background-hidden'
     );
+    //chnage icon
     event.target.classList.toggle('bi-eye');
     event.target.classList.toggle('bi-eye-slash');
 
     event.stopPropagation();
     event.preventDefault();
+  }
+
+  getSubscriptionIcon(subscriptionId: string | null): string {
+    if (subscriptionId) {
+      return 'bi-send-dash';
+    }
+    return 'bi-send-plus';
   }
 
   protected getNodeValue(nodeId: string) {
@@ -171,7 +179,7 @@ export class NodeChartComponent {
     this.chart = new Chart(ctx, chartCfg);
   }
 
-  private pushEventToChartData(event: NodeData): void {
+  private pushEventToChartData(event: NodeValue): void {
     let dsetItem = this.datasets.findIndex((c) => c.label === event.nodeId);
 
     if (dsetItem === -1) {

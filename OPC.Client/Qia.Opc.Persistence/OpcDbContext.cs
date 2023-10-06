@@ -11,7 +11,7 @@ namespace Qia.Opc.Persistence
 		}
 
 		public DbSet<NodeReferenceEntity> NodesReferences { get; set; }
-		public DbSet<NodeData> NodeConfigMonitorValues { get; set; }
+		public DbSet<NodeValue> NodeConfigMonitorValues { get; set; }
 		public DbSet<SessionEntity> Sessions { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)

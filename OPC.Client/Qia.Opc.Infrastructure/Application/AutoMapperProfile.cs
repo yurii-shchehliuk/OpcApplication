@@ -5,7 +5,7 @@ using Qia.Opc.Domain.DTO;
 using Qia.Opc.Domain.Entities;
 using Qia.Opc.OPCUA.Connector.Entities;
 
-namespace Qia.Opc.Domain.Core
+namespace Qia.Opc.Infrastrucutre.Application
 {
 	public class AutoMapperProfile : Profile
 	{
@@ -13,10 +13,9 @@ namespace Qia.Opc.Domain.Core
 		{
 			CreateMap<OPCUASession, SessionEntity>();
 
-			CreateMap<ReferenceDescription, Entities.NodeReferenceEntity>()
+			CreateMap<ReferenceDescription, NodeReferenceEntity>()
 					  .ForMember(dest => dest.NodeId, opt => opt.MapFrom(src => src.NodeId.ToString()))
 					  .ForMember(dest => dest.NodeClass, opt => opt.MapFrom(src => src.NodeClass))
-					  .ForMember(dest => dest.BrowseName, opt => opt.MapFrom(src => src.BrowseName.ToString()))
 					  .ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.DisplayName.ToString()));
 
 			CreateMap<Subscription, SubscriptionDTO>()

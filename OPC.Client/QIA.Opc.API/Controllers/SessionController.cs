@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Qia.Opc.Domain.DTO;
 using Qia.Opc.Domain.Entities;
 using Qia.Opc.Infrastrucutre.Services.OPCUA;
 using Qia.Opc.OPCUA.Connector.Entities;

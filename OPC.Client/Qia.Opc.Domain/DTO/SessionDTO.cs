@@ -1,4 +1,4 @@
-﻿namespace Qia.Opc.Domain.Entities
+﻿namespace Qia.Opc.Domain.DTO
 {
 	public class SessionDTO
 	{

@@ -21,6 +21,13 @@ namespace Qia.Opc.Persistence.Repository
 			return await _context.Set<T>().Where(filter).FirstOrDefaultAsync();
 		}
 
+		public async Task<IEnumerable<T>> ListAllAsync()
+		{
+			using var _context = _contextFactory.CreateDbContext();
+			var result = await _context.Set<T>().ToListAsync();
+			return result;
+		}
+
 		public async Task UpsertAsync(T entity, Expression<Func<T, bool>> filter)
 		{
 			using var context = _contextFactory.CreateDbContext();
@@ -30,6 +37,7 @@ namespace Qia.Opc.Persistence.Repository
 			if (existingEntity != null)
 			{
 				MapPropertiesExcept<T>(entity, ref existingEntity, "Id");
+				///TODO: handle conqurency
 				context.Update(existingEntity);
 			}
 			else
@@ -48,17 +56,12 @@ namespace Qia.Opc.Persistence.Repository
 			await _context.SaveChangesAsync();
 		}
 
-		public async Task<IEnumerable<T>> ListAllAsync()
-		{
-			using var _context = _contextFactory.CreateDbContext();
-			var result = await _context.Set<T>().ToListAsync();
-			return result;
-		}
-
 		public async Task AddAsync(T entity)
 		{
 			using var _context = _contextFactory.CreateDbContext();
 			await _context.Set<T>().AddAsync(entity);
+			///TODO: create unit of work
+			await _context.SaveChangesAsync();
 		}
 
 		private void MapPropertiesExcept<T>(T source, ref T destination, string excludedPropertyName)

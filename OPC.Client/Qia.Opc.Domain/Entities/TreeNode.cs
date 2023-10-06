@@ -10,7 +10,6 @@ namespace Qia.Opc.Domain.Entities
 	public abstract class TreeNodeBase
 	{
 		public string NodeId { get; set; }
-		public string BrowseName { get; set; }
 		public string DisplayName { get; set; }
 		public NodeClass NodeClass { get; set; }
 	}

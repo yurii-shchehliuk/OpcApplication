@@ -53,7 +53,8 @@
                         <input matInput type="number" class="col-md-3" [(ngModel)]="newNode.mSecs" />
                     </mat-form-field>
                 </td>
-                <td class="newNode"><button mat-raised-button color="primary" (click)="nodeMonitor()">Add</button></td>
+                <td class="newNode"><button mat-raised-button color="primary" (click)="addConfigNode()">Add</button>
+                </td>
             </tr>
             <br>
             <tr>
@@ -69,9 +70,10 @@
                 <td class="node-value">{{getNodeValue(item.nodeId)}}</td>
                 <td>{{item.range}}/{{item.mSecs}}</td>
                 <td class="node-action">
-                    <i (click)="hideNode($event, item.nodeId)" class="bi bi-send-plus h4 me-2"></i>
+                    <i (click)="subscribeToNode($event,item)"
+                        [class]="'h4 me-2 bi ' + getSubscriptionIcon(item.subscriptionId) "></i>
                     <i (click)="hideNode($event, item.nodeId)" class="bi bi-eye h4 me-2"></i>
-                    <i (click)="removeNode(item.nodeId)" class="bi bi-trash h4"></i>
+                    <i (click)="removeNode(item)" class="bi bi-trash h4"></i>
                 </td>
             </tr>
         </table>

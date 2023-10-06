@@ -1,11 +1,25 @@
-import { HttpErrorResponse, HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from "@angular/common/http";
-import { Injectable } from "@angular/core";
-import { Observable, catchError, throwError } from "rxjs";
+import {
+  HttpErrorResponse,
+  HttpEvent,
+  HttpHandler,
+  HttpInterceptor,
+  HttpRequest,
+} from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { Observable, catchError, throwError } from 'rxjs';
 
 @Injectable()
 export class ErrorInterceptor implements HttpInterceptor {
+  intercept(
+    request: HttpRequest<any>,
+    next: HttpHandler
+  ): Observable<HttpEvent<any>> {
+    const sessionId = sessionStorage.getItem('sessionId');
+    if (!sessionId && !request.url.includes('session')) {
+      console.error('Session ID is not found in sessionStorage!');
+      return throwError('Session ID is not found!');
+    }
 
-  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     return next.handle(request).pipe(
       catchError((error: HttpErrorResponse) => {
         let errorMsg = '';
@@ -13,15 +27,17 @@ export class ErrorInterceptor implements HttpInterceptor {
         if (error.error instanceof ErrorEvent) {
           errorMsg = `Error: ${error.error.message}`;
         } else {
-          errorMsg = `API Error: ${error.error.message || error.message}, Status: ${error.status}`;
+          errorMsg = `API Error: ${
+            error.error.message || error.message
+          }, Status: ${error.status}`;
         }
-        
+
         // Optionally log to an external logger
         console.error(errorMsg);
-        
+
         // Show a user-friendly message
         this.showToast(errorMsg);
-        
+
         return throwError(error);
       })
     );

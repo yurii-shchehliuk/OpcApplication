@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Qia.Opc.Domain.Core;
 
 namespace Qia.Opc.Domain.Common
 {
@@ -13,13 +12,7 @@ namespace Qia.Opc.Domain.Common
         public string DbConnectionString { get; set; }
         public bool SaveToAzure { get; set; }
         public string TargetTable { get; set; }
-        public virtual SignalRSettings SignalR { get; set; }
         public virtual AzureEventHub AzureEventHub { get; set; }
-    }
-
-    public class SignalRSettings
-    {
-        public string HubUrl { get; set; }
     }
 
     public class StaticSettings

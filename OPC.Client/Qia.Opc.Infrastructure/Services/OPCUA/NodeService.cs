@@ -10,9 +10,9 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 	{
 		private readonly NodeManager nodeManager;
 		private readonly IDataRepository<NodeReferenceEntity> nodeRepository;
-		private readonly IDataRepository<NodeData> nodeDataRepo;
+		private readonly IDataRepository<NodeValue> nodeDataRepo;
 
-		public NodeService(NodeManager nodeManager, IDataRepository<NodeReferenceEntity> nodeRepository, IDataRepository<NodeData> nodeDataRepo)
+		public NodeService(NodeManager nodeManager, IDataRepository<NodeReferenceEntity> nodeRepository, IDataRepository<NodeValue> nodeDataRepo)
 		{
 			this.nodeManager = nodeManager;
 			this.nodeRepository = nodeRepository;
@@ -31,8 +31,10 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			return await nodeRepository.ListAllAsync();
 		}
 
-		internal async Task UpsertConfig(NodeReferenceEntity nodeRef)
+		public async Task UpsertConfig(NodeReferenceEntity nodeRef)
 		{
+			var node = nodeManager.FindNode(nodeRef.NodeId);
+			nodeRef.NodeClass = node.NodeClass;
 			await nodeRepository.UpsertAsync(nodeRef, e => e.NodeId == nodeRef.NodeId);
 		}
 
@@ -41,7 +43,7 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			return await nodeRepository.FindAsync(c => c.NodeId == nodeId);
 		}
 
-		internal async Task AddNodeValueAsync(NodeData nodeData)
+		internal async Task AddNodeValueAsync(NodeValue nodeData)
 		{
 			await nodeDataRepo.AddAsync(nodeData);
 		}

@@ -24,7 +24,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Qia.Opc.Communication\Qia.Opc.Communication.csproj" />
 		<ProjectReference Include="..\Qia.Opc.Infrastructure\Qia.Opc.Infrastrucutre.csproj" />
 		<ProjectReference Include="..\Qia.Opc.Persistence\Qia.Opc.Persistence.csproj" />
 	</ItemGroup>

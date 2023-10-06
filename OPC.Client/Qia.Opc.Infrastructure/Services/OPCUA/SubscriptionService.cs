@@ -20,10 +20,13 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 		private readonly SignalRService signalRService;
 		private readonly IMapper mapper;
 		private readonly NodeService nodeService;
-		private List<NodeData> tempNodes = new();
+		//
+		private readonly ISession session;
+		private List<NodeValue> tempNodes = new();
 
 		public SubscriptionService(SessionManager sessionManager, SubscriptionManager subscriptionManager, SignalRService signalRService, NodeService nodeService, IMapper mapper)
 		{
+			session = sessionManager.CurrentSession.Session;
 			this.sessionManager = sessionManager;
 			this.subscriptionManager = subscriptionManager;
 			this.signalRService = signalRService;
@@ -31,20 +34,17 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			this.nodeService = nodeService;
 			subscriptionManager.NodeMonitorUpdate += SubscriptionManager_MonitoredItemUpdate;
 			subscriptionManager.SessionEvent += SubscriptionManager_SessionEvent;
-
-
 		}
 
-		public bool Subscribe(NodeReferenceEntity nodeRef)
+		public NodeReferenceEntity Subscribe(NodeReferenceEntity nodeRef)
 		{
-			nodeService.UpsertConfig(nodeRef).Wait();
-			subscriptionManager.Subscribe(nodeRef);
-			return true;
+			return subscriptionManager.Subscribe(nodeRef);
 		}
 
-		public void DeleteSubscription(uint subscriptionId)
+		public void DeleteSubscription(string subscriptionId)
 		{
-			subscriptionManager.DeleteSubscription(subscriptionId);
+			var subscription = uint.Parse(subscriptionId);
+			subscriptionManager.DeleteSubscription(subscription);
 		}
 
 		public IEnumerable<SubscriptionDTO> GetActiveSubscriptions()
@@ -59,7 +59,7 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			return subscriptionManager.GetAllMonitoredItems();
 		}
 
-		private void AddByMilliseconds(NodeData nodeData)
+		private void AddByMilliseconds(NodeValue nodeData)
 		{
 			if (nodeData.MSecs <= 0 || nodeData.StoreTime == null)
 				return;
@@ -77,7 +77,7 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			}
 		}
 
-		private void AddByRange(NodeData nodeData)
+		private void AddByRange(NodeValue nodeData)
 		{
 			if (nodeData.Range == 0)
 				return;
@@ -96,37 +96,27 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			}
 		}
 
-		private async Task AddNewNode(NodeData nodeData, string monitoringCategory)
+		private async Task AddNewNode(NodeValue nodeData, string monitoringCategory)
 		{
 			LoggerManager.Logger.Information($"[monitoring {monitoringCategory}] {nodeData.DisplayName} {nodeData.Value} {DateTimeOffset.UtcNow}");
 
 			await nodeService.AddNodeValueAsync(nodeData);
-			await signalRService.SendNodeAction(nodeData);
+			await signalRService.SendNodeAction(nodeData, nodeData.SessionName);
 			//await _azureMS.SendNodeAsync(entity);
 		}
 
-		private void SubscriptionManager_MonitoredItemUpdate(object sender, MonitoredItem node)
+		private void SubscriptionManager_MonitoredItemUpdate(object sender, NodeValue node)
 		{
-			NodeData nodeData = new()
-			{
-				SessionName = sessionManager.CurrentSession.Name,
-				DisplayName = node.DisplayName,
-				StoreTime = DateTime.Now,
-			};
+			NodeReferenceEntity nodeConfig = nodeService.FindNodeByNodeIdAsync(node.NodeId).Result;
 
-			foreach (var value in node.DequeueValues())
-			{
-				nodeData.Value = value.Value.ToString();
-				nodeData.NodeId = node.StartNodeId.ToString();
-			}
+			node.DisplayName = nodeConfig.DisplayName;
+			node.MSecs = nodeConfig.MSecs;
+			node.Range = nodeConfig.Range;
 
-			NodeReferenceEntity nodeConfig = nodeService.FindNodeByNodeIdAsync(nodeData.NodeId).Result;
-
-			nodeData.MSecs = nodeConfig.MSecs;
-			nodeData.Range = nodeConfig.Range;
-
-			AddByMilliseconds(nodeData);
-			AddByRange(nodeData);
+			node.SessionName = sessionManager.CurrentSession.Name;
+			node.StoreTime = DateTime.Now;
+			AddByMilliseconds(node);
+			AddByRange(node);
 		}
 
 		/// <summary>
@@ -146,7 +136,6 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 
 			try
 			{
-				var session = sessionManager.CurrentSession.Session;
 				foreach (var subscriptionItems in session.Subscriptions)
 				{
 					foreach (var monitoringItem in subscriptionItems.MonitoredItems)
@@ -158,7 +147,7 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 						{
 							var nodeValueNew = nodeService.ReadNodeValueOnServer(monitoringItem.ResolvedNodeId.ToString());
 
-							NodeData nodeData = new()
+							NodeValue nodeData = new()
 							{
 								SessionName = sessionManager.CurrentSession.Name,
 								DisplayName = nodeRefConfig.DisplayName,

@@ -15,7 +15,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		private readonly IMapper mapper;
 		// events
 		public delegate Task TreeServiceHandler(object sender, Domain.Entities.NodeReferenceEntity node);
-		public event TreeServiceHandler NodeFound;
+		public event TreeServiceHandler NodeFound; //deprecated
 
 		public TreeManager(SessionManager sessionManager, IMapper mapper)
 		{
@@ -247,11 +247,10 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			ReferenceDescription reference = null;
 			if (treeNode.NodeId.TryParseNodeId(out NodeId nodeId))
 			{
-                INode node = browser.Session.NodeCache.Find(nodeId);
+                //INode node = browser.Session.NodeCache.Find(nodeId);
 				reference = new ReferenceDescription()
 				{
 					NodeId = nodeId,
-					BrowseName = treeNode.BrowseName,
 					DisplayName = treeNode.DisplayName,
 					NodeClass = treeNode.NodeClass,
 					IsForward = true,
@@ -280,13 +279,13 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 		private void AddReferences(TreeNode treeNode, ReferenceDescriptionCollection references)
 		{
+			treeNode.Children = new HashSet<TreeNode>();
 			foreach (var item in references)
 			{
 				var treeItem = new TreeNode()
 				{
 					DisplayName = item.DisplayName.ToString(),
 					NodeId = item.NodeId.ToString(),
-					BrowseName = item.BrowseName.ToString(),
 					NodeClass = item.NodeClass,
 				};
 

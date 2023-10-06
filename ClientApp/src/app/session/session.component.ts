@@ -1,7 +1,7 @@
 import { Component, ElementRef, ViewChild } from '@angular/core';
 import { Chart, ChartDataset, ChartConfiguration } from 'chart.js';
 import { Subscription } from 'rxjs';
-import { NodeData } from '../models/nodeModels';
+import { NodeValue } from '../models/nodeModels';
 import { CommunicationService } from '../services/communication.service';
 import { NodeService } from '../services/node.service';
 import { SessionService } from '../services/session.service';
@@ -16,7 +16,7 @@ import { SessionEntity } from '../models/sessionModels';
   styleUrls: ['./session.component.scss'],
 })
 export class SessionComponent {
-  channelsArr: any;
+  sessionArr: SessionEntity[];
   panelOpenState = false;
 
   @ViewChild('channelList') channelArrElem: ElementRef;
@@ -31,21 +31,21 @@ export class SessionComponent {
 
   ngOnInit(): void {
     this.sessionService.sessionList$.subscribe((res) => {
-      this.channelsArr = res;
+      this.sessionArr = res;
     });
     this.sessionService.getSessionList();
   }
 
-  selectChannel(channel: any) {
+  selectChannel(channel: SessionEntity) {
     let childrens = this.channelArrElem.nativeElement.children;
     for (let item of childrens) {
       item.classList.remove('channel-selected');
       let value = item.getElementsByClassName('channel-text')[0].innerText;
-      // this.communicationService.leaveGroup(channel.id.toString());
+      this.communicationService.leaveGroup(channel.name);
 
       if (value === channel.name) {
         item.classList.add('channel-selected');
-        this.communicationService.joinNewGroup(channel.sessionId);
+        this.communicationService.joinNewGroup(channel.name);
         this.sessionService.connectToSession(channel);
       }
     }

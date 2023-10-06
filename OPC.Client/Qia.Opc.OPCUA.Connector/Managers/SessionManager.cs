@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Qia.Opc.Domain.DTO;
 using Qia.Opc.Domain.Entities.Enums;
 using Qia.Opc.OPCUA.Connector.Entities;
 using System.Collections.Concurrent;
@@ -51,7 +52,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 		}
 
-		public async Task<OPCUASession> CreateUniqueSession(Domain.Entities.SessionDTO sessionDto)
+		public async Task<OPCUASession> CreateUniqueSession(SessionDTO sessionDto)
 		{
 			//remove existing session from memory and recreate
 			if (_currentSession != null &&_currentSession.Name == sessionDto.Name && _currentSession.EndpointUrl == sessionDto.EndpointUrl)

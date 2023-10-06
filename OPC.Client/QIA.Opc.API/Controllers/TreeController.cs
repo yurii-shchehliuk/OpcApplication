@@ -15,16 +15,16 @@ namespace QIA.Opc.API.Controllers
 		}
 
 		[HttpPatch("childrens")]
-		public async Task<ActionResult<TreeNode>> TreeChildrens([FromBody] TreeNode treeItem)
+		public async Task<ActionResult<List<TreeNode>>> TreeChildrens([FromBody] TreeNode treeItem)
 		{
-			if (treeItem.Children.Count > 0)
+			if (treeItem.Children != null && treeItem.Children.Count > 0)
 			{
 				// should be loaded then already
 				return Ok();
 			}
 
 			var result = treeService.BrowseChild(treeItem);
-			return Ok(result);
+			return Ok(new List<TreeNode>() { result });
 		}
 
 		[HttpGet("full")]
@@ -37,7 +37,7 @@ namespace QIA.Opc.API.Controllers
 		[HttpPost("active")]
 		public async Task<ActionResult<TreeNode>> FindNodesRecursively([FromBody] HashSet<NodeReferenceEntity> nodesToFind)
 		{
-			var result =  treeService.FindNodesRecursively(nodesToFind);
+			var result = treeService.FindNodesRecursively(nodesToFind);
 			return Ok();
 		}
 

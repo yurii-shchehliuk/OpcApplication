@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.SignalR;
+using Qia.Opc.Domain.DTO;
 using Qia.Opc.Domain.Entities;
 using Qia.Opc.Infrastrucutre.Services.Communication;
 using Qia.Opc.OPCUA.Connector.Entities;
@@ -13,14 +15,12 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 	public class SessionService
 	{
 		private readonly SessionManager _sessionManager;
-		private readonly SignalRService signalRService;
 		private readonly IMapper mapper;
 		private readonly IDataRepository<SessionEntity> sessionRepo;
 
-		public SessionService(SessionManager sessionManager, SignalRService signalRService, IMapper mapper, IDataRepository<SessionEntity> sessionRepo)
+		public SessionService(SessionManager sessionManager, IMapper mapper, IDataRepository<SessionEntity> sessionRepo)
 		{
 			_sessionManager = sessionManager;
-			this.signalRService = signalRService;
 			this.mapper = mapper;
 			this.sessionRepo = sessionRepo;
 		}
@@ -30,7 +30,6 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			var session = await _sessionManager.CreateUniqueSession(endpointUrl);
 			var sessionEntity = mapper.Map<SessionEntity>(session);
 			await sessionRepo.UpsertAsync(sessionEntity, c => c.Name == endpointUrl.Name);
-			await signalRService.JoinGroup(sessionEntity.Name);
 
 			return sessionEntity;
 		}
@@ -42,7 +41,6 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 
 		public async Task<bool> DeleteSession(string sessionName)
 		{
-			await signalRService.LeaveGroup(sessionName);
 			var sessionToDelete = await sessionRepo.FindAsync(c => c.Name == sessionName);
 			if (sessionToDelete == null) return false;
 			await sessionRepo.DeleteAsync(sessionToDelete);
@@ -55,7 +53,5 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			var sessionEntity = mapper.Map<SessionEntity>(session);
 			return sessionEntity;
 		}
-
-
 	}
 }

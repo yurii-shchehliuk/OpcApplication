@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, Subscription, tap } from 'rxjs';
 import { environment } from 'src/enviroments/enviroment';
 import { SessionEntity } from '../models/sessionModels';
+import { NodeService } from './node.service';
 
 @Injectable({
   providedIn: 'root',
@@ -14,7 +15,7 @@ export class SessionService {
   private selectedChannel = new BehaviorSubject<string>('');
   private sessionListSubject = new BehaviorSubject<SessionEntity[]>([]);
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private nodeService: NodeService) {}
 
   private set setChannel(name: string) {
     this.selectedChannel.next(name);
@@ -30,15 +31,18 @@ export class SessionService {
 
   connectToSession(session: SessionEntity): Subscription {
     this.setChannel = session.name;
-    return this.http.post(this.baseUrl + 'connect', session).subscribe({
-      next: (response: any) => {
-        this.selectedChannel.next(response.name);
-        sessionStorage.setItem(this.SESSION_KEY, response.sessionId);
-      },
-      error: (err) => {
-        console.log(err);
-      },
-    });
+    return this.http
+      .post<SessionEntity>(this.baseUrl + 'connect', session)
+      .subscribe({
+        next: (response: SessionEntity) => {
+          this.selectedChannel.next(response.name);
+          sessionStorage.setItem(this.SESSION_KEY, response.sessionId);
+          this.nodeService.getConfigNodes();
+        },
+        error: (err) => {
+          console.log(err);
+        },
+      });
   }
 
   deleteSession(sessionId: string): Subscription {
@@ -62,7 +66,7 @@ export class SessionService {
     return this.http.get<SessionEntity>(this.baseUrl + sessionId);
   }
 
-  renewSession(sessionId: string): any {
+  renewSession(sessionId: string) {
     return this.http.get<SessionEntity>(this.baseUrl + 'renew/' + sessionId);
   }
 }

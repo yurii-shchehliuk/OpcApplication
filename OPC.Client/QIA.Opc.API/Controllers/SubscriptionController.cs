@@ -16,15 +16,14 @@ namespace QIA.Opc.API.Controllers
 		}
 
 		[HttpPost("create")]
-		public async Task<IActionResult> CreateSubscription([FromBody] NodeReferenceEntity nodeReference)
+		public async Task<ActionResult<NodeReferenceEntity>> CreateSubscription([FromBody] NodeReferenceEntity nodeReference)
 		{
-			nodeReference.NodeClass = NodeClass.Object;
-			var isSuccess = subscriptionService.Subscribe(nodeReference);
-			return Ok();
+			var nodeRef = subscriptionService.Subscribe(nodeReference);
+			return Ok(nodeRef);
 		}
 
 		[HttpDelete("{subscriptionId}")]
-		public IActionResult DeleteSubscription(uint subscriptionId)
+		public IActionResult DeleteSubscription(string subscriptionId)
 		{
 			subscriptionService.DeleteSubscription(subscriptionId);
 			return Ok();

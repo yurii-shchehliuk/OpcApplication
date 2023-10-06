@@ -7,8 +7,6 @@ Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-co
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QIA.Opc.API", "QIA.Opc.API\QIA.Opc.API.csproj", "{8971089E-90D3-4E97-8DFF-A93670997C85}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qia.Opc.Communication", "Qia.Opc.Communication\Qia.Opc.Communication.csproj", "{F7AFC507-E913-47D4-A0D2-E8CC7732949C}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qia.Opc.Domain", "Qia.Opc.Domain\Qia.Opc.Domain.csproj", "{F0F50BB7-7E32-464E-8EFE-DC59AFB18DF0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qia.Opc.Infrastrucutre", "Qia.Opc.Infrastructure\Qia.Opc.Infrastrucutre.csproj", "{03032660-8AD8-4FB6-BD2F-3F64D794406B}"
@@ -31,10 +29,6 @@ Global
 		{8971089E-90D3-4E97-8DFF-A93670997C85}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8971089E-90D3-4E97-8DFF-A93670997C85}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8971089E-90D3-4E97-8DFF-A93670997C85}.Release|Any CPU.Build.0 = Release|Any CPU
-		{F7AFC507-E913-47D4-A0D2-E8CC7732949C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F7AFC507-E913-47D4-A0D2-E8CC7732949C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F7AFC507-E913-47D4-A0D2-E8CC7732949C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F7AFC507-E913-47D4-A0D2-E8CC7732949C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F0F50BB7-7E32-464E-8EFE-DC59AFB18DF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F0F50BB7-7E32-464E-8EFE-DC59AFB18DF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F0F50BB7-7E32-464E-8EFE-DC59AFB18DF0}.Release|Any CPU.ActiveCfg = Release|Any CPU

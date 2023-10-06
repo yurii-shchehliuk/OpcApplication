@@ -11,22 +11,22 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		private readonly NodeManager nodeManager;
 
 		//delegates
-		public delegate void NodeMonitorUpdateHandler(object sender, MonitoredItem node);
+		public delegate void NodeMonitorUpdateHandler(object sender, NodeValue node);
 		public event NodeMonitorUpdateHandler NodeMonitorUpdate;
-		public delegate void SessionEventHandler(object session, NotificationEventArgs e);
+		public delegate void SessionEventHandler(ISession session, NotificationEventArgs e);
 		public event SessionEventHandler SessionEvent;
 		//
 		private NotificationEventHandler m_SessionNotification = null;
-		private EventHandler m_PublishStatusChanged = null;
+		private PublishStateChangedEventHandler m_PublishStatusChanged = null;
 		private SubscriptionStateChangedEventHandler m_SubscriptionStateChanged = null;
-		private MonitoredItemNotificationEventHandler m_MonitoredItemNotification;
+		private MonitoredItemNotificationEventHandler m_MonitoredItemNotification = null;
 		public SubscriptionManager(SessionManager sessionManager, NodeManager nodeManager)
 		{
 			this.sessionManager = sessionManager;
 			this.nodeManager = nodeManager;
 
-			m_SessionNotification= new NotificationEventHandler(Session_NotificationAsync);
-			m_PublishStatusChanged = new EventHandler(PublishStatusChanged);
+			m_SessionNotification = new NotificationEventHandler(Session_NotificationAsync);
+			m_PublishStatusChanged = new PublishStateChangedEventHandler(PublishStatusChanged);
 			m_SubscriptionStateChanged = new SubscriptionStateChangedEventHandler(SubscriptionStateChanged);
 			m_MonitoredItemNotification = new MonitoredItemNotificationEventHandler(OnMonitoredItemNotification);
 		}
@@ -62,10 +62,12 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			return items;
 		}
 
-		public void Subscribe(NodeReferenceEntity nodeRef)
+		public NodeReferenceEntity Subscribe(NodeReferenceEntity nodeRef)
 		{
 			var subscription = CreateSubscription(nodeRef.DisplayName);
+			nodeRef.SubscriptionId = subscription.Id.ToString();
 			AddMonitoredItem(subscription, nodeRef);
+			return nodeRef;
 		}
 
 		private Subscription CreateSubscription(string displayName)
@@ -77,6 +79,13 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			};
 			try
 			{
+				Subscription duplicateSubscription2 = session.Subscriptions.FirstOrDefault(s => s.DisplayName == displayName);
+				if (duplicateSubscription2 != null)
+				{
+					LoggerManager.Logger.Information("Duplicate subscription with the same name: {0}", duplicateSubscription2.DisplayName);
+					session.RemoveSubscription(subscription);
+				}
+
 				session.AddSubscription(subscription);
 				subscription.Create();
 
@@ -87,6 +96,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 					duplicateSubscription.Delete(false);
 					session.RemoveSubscription(subscription);
+
 				}
 			}
 			catch (Exception ex)
@@ -96,7 +106,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 			subscription.Session.Notification += m_SessionNotification;
 			subscription.StateChanged += m_SubscriptionStateChanged;
-			//m_subscription.PublishStatusChanged += m_PublishStatusChanged;
+			subscription.PublishStatusChanged += m_PublishStatusChanged;
 
 			return subscription;
 		}
@@ -158,19 +168,18 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 		private void OnMonitoredItemNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
 		{
-			try
+			if (e != null)
 			{
-				// notify controls of the change.
-				if (e != null)
+				MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
+
+
+				NodeValue node = new NodeValue()
 				{
-					MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
-				}
-				// update item status.
+					NodeId = item.StartNodeId.ToString(),
+					Value = notification.Value.ToString(),
+				};
+				NodeMonitorUpdate.Invoke(this, node);
 			}
-			catch (Exception exception)
-			{
-			}
-			NodeMonitorUpdate.Invoke(this, item);
 		}
 
 		private void Session_NotificationAsync(ISession session, NotificationEventArgs e)
@@ -183,7 +192,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			LoggerManager.Logger.Information(e.ToString());
 		}
 
-		private void PublishStatusChanged(object? sender, EventArgs e)
+		private void PublishStatusChanged(Subscription subscription, PublishStateChangedEventArgs e)
 		{
 			LoggerManager.Logger.Information(e.ToString());
 		}

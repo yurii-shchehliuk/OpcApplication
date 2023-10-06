@@ -9,7 +9,7 @@ namespace Qia.Opc.Domain.Entities
 	/// </summary>
 	public class NodeReferenceEntity : TreeNodeBase, IBaseNode
 	{
-		public string? SessionName { get; set; }
+		public string? SubscriptionId { get; set; }
 		public uint? MSecs { get; set; }
 		public uint? Range { get; set; }
 	}
