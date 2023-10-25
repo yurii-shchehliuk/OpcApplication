@@ -1,0 +1,20 @@
+parameters:
+  buildConfiguration: ''
+  opcApiArtifactName: ''
+
+steps:
+  # .net restore
+  - template: restore-build-test.yml
+
+  # .NET Publish
+  - task: DotNetCoreCLI@2
+    displayName: 'Dotnet Publish API'
+    inputs:
+      command: 'publish'
+      projects: '**/QIA.Opc.API.csproj'
+      arguments: '--configuration ${{ parameters.buildConfiguration }} --output $(Build.ArtifactStagingDirectory)/${{ parameters.opcApiArtifactName }} --no-build'
+      zipAfterPublish: True
+      publishWebProjects: false
+      modifyOutputPath: false
+  - publish: $(Build.ArtifactStagingDirectory)/${{ parameters.opcApiArtifactName }}
+    artifact: ${{ parameters.opcApiArtifactName }}

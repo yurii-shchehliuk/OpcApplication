@@ -247,7 +247,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			ReferenceDescription reference = null;
 			if (treeNode.NodeId.TryParseNodeId(out NodeId nodeId))
 			{
-                //INode node = browser.Session.NodeCache.Find(nodeId);
+				//INode node = browser.Session.NodeCache.Find(nodeId);
 				reference = new ReferenceDescription()
 				{
 					NodeId = nodeId,
@@ -289,7 +289,10 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 					NodeClass = item.NodeClass,
 				};
 
-				treeNode.Children.Add(treeItem);
+				if (!treeNode.Children.Any(c => c.NodeId == item.NodeId.ToString()))
+				{
+					treeNode.Children.Add(treeItem);
+				}
 			}
 		}
 	}

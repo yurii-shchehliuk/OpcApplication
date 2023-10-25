@@ -20,7 +20,7 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 
 		private async Task TreeManager_NodeWasFound(object sender, NodeReferenceEntity nodeRef)
 		{
-			subscriptionService.Subscribe(nodeRef);
+			await subscriptionService.SubscribeAsync(nodeRef);
 			await nodeReferencesRepo.AddAsync(nodeRef);
 		}
 

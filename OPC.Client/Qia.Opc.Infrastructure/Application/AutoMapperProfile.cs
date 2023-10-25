@@ -12,6 +12,7 @@ namespace Qia.Opc.Infrastrucutre.Application
 		public AutoMapperProfile()
 		{
 			CreateMap<OPCUASession, SessionEntity>();
+			CreateMap<SessionDTO, SessionEntity>();
 
 			CreateMap<ReferenceDescription, NodeReferenceEntity>()
 					  .ForMember(dest => dest.NodeId, opt => opt.MapFrom(src => src.NodeId.ToString()))

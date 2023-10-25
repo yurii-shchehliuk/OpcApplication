@@ -19,7 +19,7 @@ export class SessionComponent {
   sessionArr: SessionEntity[];
   panelOpenState = false;
 
-  @ViewChild('channelList') channelArrElem: ElementRef;
+  @ViewChild('sessionList') sessionArrElem: ElementRef;
 
   constructor(
     private sessionService: SessionService,
@@ -36,17 +36,18 @@ export class SessionComponent {
     this.sessionService.getSessionList();
   }
 
-  selectChannel(channel: SessionEntity) {
-    let childrens = this.channelArrElem.nativeElement.children;
+  selectSession(channel: SessionEntity) {
+    let childrens = this.sessionArrElem.nativeElement.children;
     for (let item of childrens) {
-      item.classList.remove('channel-selected');
       let value = item.getElementsByClassName('channel-text')[0].innerText;
-      this.communicationService.leaveGroup(channel.name);
 
       if (value === channel.name) {
         item.classList.add('channel-selected');
         this.communicationService.joinNewGroup(channel.name);
         this.sessionService.connectToSession(channel);
+      } else {
+        item.classList.remove('channel-selected');
+        this.communicationService.leaveGroup(value);
       }
     }
   }
@@ -59,10 +60,11 @@ export class SessionComponent {
       data: sessionData,
     });
 
-    event.stopPropagation();
-
-    sessionDialog.afterClosed().subscribe(() => {
-      this.sessionService.getSessionList();
+    sessionDialog.afterClosed().subscribe({
+      complete: () => {
+        this.sessionService.getSessionList();
+      },
     });
+    event.stopPropagation();
   }
 }

@@ -1,11 +1,16 @@
+using Azure.Storage.Blobs;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
 using Qia.Opc.Infrastrucutre.Services.Communication;
 using Qia.Opc.Infrastrucutre.Services.OPCUA;
+using Qia.Opc.Infrastrucutre.ServicesHosted;
 using Qia.Opc.OPCUA.Connector;
 using Qia.Opc.OPCUA.Connector.Managers;
+using Qia.Opc.OPCUA.Connector.Services;
 using Qia.Opc.Persistence;
 using Qia.Opc.Persistence.Repository;
 using QIA.Opc.API.Core;
@@ -13,28 +18,35 @@ using System.Text.Json;
 
 namespace QIA.Opc.API
 {
-	public class Program
+    public class Program
 	{
 		public async static Task Main(string[] args)
 		{
-			var webClient = "webClient";
-			var anyOrigin = "opcClient";
+			string webClient = nameof(webClient);
+			string anyOrigin = nameof(anyOrigin);
 
 			var builder = WebApplication.CreateBuilder(args);
 			LoggerManager.InitLogging();
-			// Add services to the container.
-			builder.Services.AddControllers()
-			.AddJsonOptions(options =>
-			 {
-				 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-			 });
 
-			var configBuilder = new ApplicationConfigBuilder();
-			configBuilder.Init().Wait();
-			builder.Services.AddSingleton<ApplicationConfiguration>(configBuilder.ApplicationConfiguration);
+			// Add services to the container.
+			builder.Services.AddControllers().AddJsonOptions(options =>
+			{
+				options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+			});
 
 			IAppSettings settings = new AppSettings(builder.Configuration);
 			builder.Services.AddSingleton<IAppSettings>(settings);
+
+			// app init
+			builder.Services.AddSingleton<ApplicationConfiguration>(sp =>
+			{
+				KeyVaultService keyVaultService = sp.GetRequiredService<KeyVaultService>();
+				
+				var configBuilder = new ApplicationConfigBuilder(keyVaultService);
+				configBuilder.Init().Wait();
+
+				return configBuilder.ApplicationConfiguration;
+			});
 
 			// connector
 			builder.Services.AddSingleton<SessionManager>();
@@ -42,10 +54,11 @@ namespace QIA.Opc.API
 			builder.Services.AddScoped<MonitoredItemManager>();
 			builder.Services.AddScoped<TreeManager>();
 			builder.Services.AddTransient<NodeManager>();
+			builder.Services.AddSingleton<KeyVaultService>();
 
 			// infrastructure
 			builder.Services.AddTransient<CleanerService>();
-			builder.Services.AddScoped<NodeService>();
+			builder.Services.AddTransient<NodeService>();
 			builder.Services.AddScoped<SessionService>();
 			builder.Services.AddScoped<TreeService>();
 			builder.Services.AddScoped<SubscriptionService>();
@@ -54,17 +67,22 @@ namespace QIA.Opc.API
 			builder.Services.AddSingleton<SignalRService>();
 
 			// hosted
+			builder.Services.AddHostedService<EventHandlerService>();
 			//builder.Services.AddHostedService<SessionCleanupService>();
-			//builder.Services.AddHostedService<SignalrHosted>();
 
 			// database
-			builder.Services.AddScoped(typeof(IDataRepository<>), typeof(DataRepository<>));
+			builder.Services.AddScoped(typeof(IDataRepository<>), typeof(DataRepositoryMSSQL<>));
 
 			builder.Services.AddDbContextFactory<OpcDbContext>(x =>
 												x.UseSqlServer(settings.DbConnectionString));
 
 			// 3rd libs
-			builder.Services.AddSignalR();
+			builder.Services
+				.AddSignalR()
+				.AddAzureSignalR(options =>
+				{
+					options.ConnectionString = "Endpoint=https://dev-qia-opc-api-weu-sr.service.signalr.net;AccessKey=oOkPCAkUWCGJd/sKyYOByLbCSPyQbjssxrl1TIwf7jk=;Version=1.0;";
+				});
 			builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 			builder.Services.AddEndpointsApiExplorer();
 			builder.Services.AddSwaggerGen(c =>
@@ -75,26 +93,31 @@ namespace QIA.Opc.API
 			// cors
 			builder.Services.AddCors(o =>
 			{
-				o.AddPolicy(webClient, c => c.AllowAnyHeader().AllowAnyMethod().AllowCredentials().WithOrigins("http://localhost:4200", "127.0.0.1", "localhost"));
+				o.AddPolicy(webClient, c => c.AllowAnyHeader().AllowAnyMethod().AllowCredentials().WithOrigins("http://localhost:4200", "127.0.0.1", "localhost", "https://dev-qia-opc-web-weu-app.azurewebsites.net"));
 				o.AddPolicy(anyOrigin, c => c.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 			});
 
+
 			var app = builder.Build();
 
-			var scope = app.Services.CreateScope();
-			await InitDb(scope);
+			// app run
+			app.Services.GetRequiredService<ApplicationConfiguration>();
+			await InitDbAsync(app.Services.CreateScope());
 
 			// Configure the HTTP request pipeline.
 			if (!app.Environment.IsDevelopment())
 			{
 				// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-				app.UseHsts();
 			}
+
+			app.UseHttpsRedirection();
+			app.UseHsts();
 
 			app.UseMiddleware<SessionMiddleware>();
 			app.UseMiddleware<ExceptionMiddleware>();
+
+
 			app.UseCors(webClient);
-			app.UseHttpsRedirection();
 
 			app.UseRouting();
 
@@ -117,7 +140,8 @@ namespace QIA.Opc.API
 			app.Run();
 		}
 
-		private static async Task InitDb(IServiceScope scope)
+
+		private static async Task InitDbAsync(IServiceScope scope)
 		{
 			using var context = scope.ServiceProvider.GetRequiredService<OpcDbContext>();
 			try
@@ -127,6 +151,7 @@ namespace QIA.Opc.API
 
 				var created = await context.Database.EnsureCreatedAsync();
 				LoggerManager.Logger.Information($"Db {(created ? "is created" : "already exists")}");
+
 			}
 			catch (Exception ex)
 			{

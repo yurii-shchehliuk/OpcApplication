@@ -12,7 +12,7 @@
 /*
  * This padding sets alignment of the nested nodes.
  */
-.example-tree .mat-nested-tree-node div[role=group] {
+.example-tree .mat-nested-tree-node div[role="group"] {
   padding-left: 40px;
 }
 
@@ -21,10 +21,9 @@
  * Leaf nodes need to have padding so as to align with other non-leaf nodes
  * under the same parent.
  */
-.example-tree div[role=group] > .mat-tree-node {
+.example-tree div[role="group"] > .mat-tree-node {
   padding-left: 40px;
 }
-
 
 .container {
   padding: 2em;
@@ -33,5 +32,39 @@
   }
   mat-tree {
     background: #fafafa;
+  }
+  .mat-tree-node {
+    display: block !important;
+
+    a {
+      vertical-align: super;
+    }
+
+    i {
+      visibility: hidden;
+      display: block;
+      float: right;
+      width: 2em;
+      height: 2em;
+      padding: 0 0.45em;
+
+      &::before {
+        vertical-align: -webkit-baseline-middle;
+      }
+    }
+
+    &:hover {
+      background-color: whitesmoke;
+      i {
+        visibility: visible;
+
+        &:hover {
+          border: 1px solid transparent;
+          border-radius: 50%;
+          cursor: pointer;
+          background: rgb(235, 235, 235);
+        }
+      }
+    }
   }
 }

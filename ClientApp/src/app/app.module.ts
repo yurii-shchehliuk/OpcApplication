@@ -14,6 +14,7 @@ import { MatTreeModule } from '@angular/material/tree';
 
 import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -30,6 +31,7 @@ import { FooterComponent } from './core/footer/footer.component';
 import { NodeChartComponent } from './node-chart/node-chart.component';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { ToastrModule } from 'ngx-toastr';
 
 @NgModule({
   declarations: [
@@ -60,10 +62,17 @@ import { MatExpansionModule } from '@angular/material/expansion';
     MatButtonModule,
     MatDialogModule,
     MatExpansionModule,
+    MatProgressBarModule,
     //
     HttpClientModule,
     ReactiveFormsModule,
     FormsModule,
+    ToastrModule.forRoot({
+      positionClass: 'toast-bottom-right',
+      preventDuplicates: true,
+      closeButton: true,
+      timeOut: 3000,
+    }),
   ],
   providers: [
     { provide: HTTP_INTERCEPTORS, useClass: ErrorInterceptor, multi: true },

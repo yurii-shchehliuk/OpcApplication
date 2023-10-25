@@ -1,9 +1,9 @@
 <section>
     <h2>Hub source</h2>
-    <div #channelList class="channelList">
-        <div routerLink="." *ngFor="let channel of sessionArr" class="channel" (click)="selectChannel(channel)">
-            <p class="channel-text">{{channel.name}}</p>
-            <span aria-hidden="true" (click)="openDialog($event,channel)"><i class="bi bi-pencil"></i></span>
+    <div #sessionList class="channelList">
+        <div routerLink="." *ngFor="let session of sessionArr" class="channel" (click)="selectSession(session)">
+            <p class="channel-text">{{session.name}}</p>
+            <i class="bi bi-pencil" (click)="openDialog($event,session)"></i>
         </div>
     </div>
 

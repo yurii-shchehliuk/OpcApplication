@@ -11,6 +11,7 @@ export interface NodeReference {
   nodeId: string;
   displayName: string;
   subscriptionId: string | null;
+  sessionEntityId: number;
   nodeClass: NodeClass;
   range: number | null;
   mSecs: number | null;
@@ -21,6 +22,11 @@ export interface TreeNode {
   displayName: string;
   nodeClass: NodeClass;
   children: TreeNode[];
+}
+
+export interface EventData {
+  message: string;
+  title: string;
 }
 
 export enum NodeClass {

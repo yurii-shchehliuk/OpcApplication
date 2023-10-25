@@ -1,0 +1,6 @@
+"micron": "opc.tcp://10.100.48.100:4981"
+"richyger": "opc.tcp://10.100.48.23:62541"
+opc.tcp://wro-shchehly-l1:26543/QiagenOpcServer
+NodeId	MSecs	Range	DisplayName	NodeClass
+ns=2;i=15141	1	1	output	2
+ns=2;i=15148	1	1	ExcitationVoltage	2

@@ -5,12 +5,23 @@ using Qia.Opc.Domain.Entities;
 
 namespace Qia.Opc.Persistence
 {
-    public class NodeReferenceEntityEntity : IEntityTypeConfiguration<NodeReferenceEntity>
+	public class SessionEntityConfig : IEntityTypeConfiguration<SessionEntity>
+	{
+		public void Configure(EntityTypeBuilder<SessionEntity> builder)
+		{
+			builder.HasKey(c => c.Id);
+		}
+	}
+	
+	public class NodeReferenceEntityEntity : IEntityTypeConfiguration<NodeReferenceEntity>
 	{
 		public void Configure(EntityTypeBuilder<NodeReferenceEntity> builder)
 		{
 			builder.HasKey(e => e.NodeId);
-			builder.HasIndex(e => e.NodeId).IsUnique();
+			builder.HasOne(c => c.SessionEntity)
+					.WithMany(c=>c.NodeConfigs)
+					.HasForeignKey(c=>c.SessionEntityId)
+					.OnDelete(DeleteBehavior.Cascade);
 		}
 	}
 

@@ -1,6 +1,7 @@
 import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { SessionEntity } from 'src/app/models/sessionModels';
+import { CommunicationService } from 'src/app/services/communication.service';
 import { SessionService } from 'src/app/services/session.service';
 
 @Component({
@@ -13,18 +14,21 @@ export class SessionDialogComponent {
   constructor(
     public dialogRef: MatDialogRef<SessionDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public sessionData: SessionEntity,
-    private sessionService: SessionService
+    private sessionService: SessionService,
+    private communicationService: CommunicationService
   ) {
     if (sessionData.name) {
       this.addNew = false;
     }
   }
 
-  addGroup() {
-    this.sessionService.connectToSession(this.sessionData);
+  addSession() {
+    this.sessionData.sessionId = '';
+    this.sessionService.createEndpoint(this.sessionData);
   }
 
   removeGroup() {
+    this.communicationService.leaveGroup(this.sessionData.name);
     this.sessionService.deleteSession(this.sessionData.name);
   }
 }

@@ -4,8 +4,7 @@
 # https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
 
 trigger:
-#- master
-#- main
+  - main
 
 pool:
   vmImage: 'windows-latest'
@@ -14,37 +13,68 @@ variables:
   solution: '**/*.sln'
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
+  opcApiArtifactName: 'QIA_OpcAPI'
+  opcWebAppArtifactName: 'QIA_OpcWebApp'
+  AzureSubscription: 'DataLakeDEV-dev-qia-dm-weu-rg'
+  ResourceGroupName: 'dev-qia-dm-sandbox-weu-rg'
+  #OpcApiServiceName: 'dev-qia-opc-api-weu-app'
+  OpcApiServiceName: 'dev-qia-opc-api-weu-app'
+  OpcApiSlotName: 'dev-qia-opc-api-weu-test-app-dd'
+  OpcWebAppServiceName: 'dev-qia-opc-web-weu-app'
 
-steps:
-# - task: SonarCloudPrepare@1
-#   inputs:
-#         SonarCloud: 'SonarCloudConnection1'
-#         organization: 'qiagenda'
-#         scannerMode: 'MSBuild'
-#         projectKey: 'QiagenDA_OPCUA'
-#         projectName: 'OPCUA'
-#         extraProperties: |
-#           sonar.javascript.node.maxspace=4096
-#           sonar.exclusions=**/d3.js,**/lib/DataTables/**,**/views_backup*.sql
-#           sonar.log.level=DEBUG- task: NuGetToolInstaller@1
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildAndPublish
+        displayName: 'Build and Publish Job'
+        steps:
+          - checkout: self
+            fetchDepth: 0
 
-# NuGet tool installer
-- task: NuGetToolInstaller@1
+          - template: build/dotnet-build-publish.yml
+            parameters:
+              buildConfiguration: $(buildConfiguration)
+              opcApiArtifactName: $(opcApiArtifactName)
 
-# NuGet
-- task: NuGetCommand@2
-  inputs:
-    restoreSolution: '$(solution)'
+          - template: build/angular-build-publish.yml
+            parameters:
+              opcWebAppArtifactName: $(opcWebAppArtifactName)
 
-# Visual Studio MSBuild
-- task: VSBuild@1
-  inputs:
-    solution: '$(solution)'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+  - stage: DeployDEV
+    displayName: 'Deploy to DEV Stage'
+    jobs:
+      # deploy API
+      - deployment: DeployApi
+        displayName: 'Deploy $(opcApiArtifactName)'
+        environment:
+          name: 'QIAOpc_DEV'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebApp@1
+                  displayName: 'Deploy to Azure Web App $(Pipeline.Workspace)'
+                  inputs:
+                    azureSubscription: '$(AzureSubscription)'
+                    appType: 'webApp'
+                    appName: '$(OpcApiServiceName)'
+                    package: '$(Pipeline.Workspace)/**/$(opcApiArtifactName).zip'
+                    # slotName: '$(OpcApiSlotName)'
 
-# - task: VSTest@2
-#   inputs:
-#     platform: '$(buildPlatform)'
-#     configuration: '$(buildConfiguration)'
+      # deploy WEB
+      - deployment: DeployOPCWebApp
+        displayName: 'Deploy $(opcWebAppArtifactName)'
+        environment:
+          name: 'QIAOpc_DEV'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebApp@1
+                  displayName: 'Deploy OPC Web App'
+                  inputs:
+                    azureSubscription: '$(AzureSubscription)'
+                    appType: 'webApp'
+                    appName: '$(OpcWebAppServiceName)'
+                    package: '$(Pipeline.Workspace)/drop/$(opcWebAppArtifactName).zip'
+                    runtimeStack: 'NODE|16-lts'

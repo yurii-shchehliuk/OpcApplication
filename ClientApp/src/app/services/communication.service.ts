@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { environment } from 'src/enviroments/enviroment';
-import { NodeValue } from '../models/nodeModels';
+import { EventData, NodeValue } from '../models/nodeModels';
 import * as signalR from '@microsoft/signalr';
+import { environment } from 'src/environments/environment.development';
+import { NotificationService } from '../shared/notification.service';
 
 @Injectable({
   providedIn: 'root',
@@ -17,6 +18,8 @@ export class CommunicationService {
     return this.nodeSubject.asObservable();
   }
 
+  constructor(private notificationService: NotificationService) {}
+
   async signalReset() {
     if (this.hubConnection) await this.hubConnection.stop();
     console.log('SignalR disconnected.');
@@ -25,12 +28,14 @@ export class CommunicationService {
   async signalrInit() {
     this.hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(environment.signalrHub)
+      .withAutomaticReconnect()
       .build();
 
     try {
       await this.hubConnection.start().then(() => {
         console.log('Connected to SignalR hub.');
         this.listenNodesSubscription();
+        this.listenEventMessage();
       });
 
       return 'Connected';
@@ -48,8 +53,20 @@ export class CommunicationService {
     });
   }
 
+  private listenEventMessage(method: string = 'SendEventMessageAction') {
+    this.hubConnection.on(method, (data: EventData) => {
+      this.notificationService.showInfo(data.message, data.title);
+    });
+  }
+
   joinNewGroup(group: string): void {
-    this.hubConnection.invoke('JoinGroup', group);
+    if (!this.hubConnection.connectionId) {
+      this.signalrInit().then(() => {
+        this.hubConnection.invoke('JoinGroup', group);
+      });
+    } else {
+      this.hubConnection.invoke('JoinGroup', group);
+    }
   }
 
   leaveGroup(group: string): void {

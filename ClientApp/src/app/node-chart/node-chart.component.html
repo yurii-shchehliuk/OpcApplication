@@ -3,7 +3,7 @@
         <mat-card>
             <mat-card-title>
                 <p class="d-inline">
-                    OPC data chart [{{channelSource}}]
+                    OPC data chart [{{sessionSource}}]
                 </p>
                 <div class="settingsToggle">
                     <button class="btn btn-outline-secondary">
@@ -49,7 +49,7 @@
                 </td>
                 <td>
                     <mat-form-field>
-                        <mat-label>MSecs</mat-label>
+                        <mat-label>Seconds</mat-label>
                         <input matInput type="number" class="col-md-3" [(ngModel)]="newNode.mSecs" />
                     </mat-form-field>
                 </td>
@@ -61,7 +61,7 @@
                 <th>Node Id</th>
                 <th>Name</th>
                 <th>Value</th>
-                <th>Range/MSecs</th>
+                <th>Range/Seconds</th>
                 <th></th>
             </tr>
             <tr *ngFor="let item of nodeArray" class="node">
@@ -70,14 +70,13 @@
                 <td class="node-value">{{getNodeValue(item.nodeId)}}</td>
                 <td>{{item.range}}/{{item.mSecs}}</td>
                 <td class="node-action">
-                    <i (click)="subscribeToNode($event,item)"
-                        [class]="'h4 me-2 bi ' + getSubscriptionIcon(item.subscriptionId) "></i>
-                    <i (click)="hideNode($event, item.nodeId)" class="bi bi-eye h4 me-2"></i>
-                    <i (click)="removeNode(item)" class="bi bi-trash h4"></i>
+                    <i (click)="subscribeToNode($event,item)" [class]="'h4 me-2 bi ' + getSubscriptionIcon(item) "></i>
+                    <i (click)="hideNode($event, item.nodeId)" class="bi bi-eye h4 "></i>
+                    <i (click)="removeNode(item)" class="bi bi-trash h4 "></i>
                 </td>
             </tr>
         </table>
     </div>
 </section>
 
-<app-node-tree></app-node-tree>
+<app-node-tree (newNode)="populateNode($event)"></app-node-tree>

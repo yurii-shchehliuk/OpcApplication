@@ -20,11 +20,13 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 		private readonly SignalRService signalRService;
 		private readonly IMapper mapper;
 		private readonly NodeService nodeService;
+		private readonly SessionService sessionService;
+
 		//
 		private readonly ISession session;
 		private List<NodeValue> tempNodes = new();
 
-		public SubscriptionService(SessionManager sessionManager, SubscriptionManager subscriptionManager, SignalRService signalRService, NodeService nodeService, IMapper mapper)
+		public SubscriptionService(SessionManager sessionManager, SubscriptionManager subscriptionManager, SignalRService signalRService, NodeService nodeService, SessionService sessionService, IMapper mapper)
 		{
 			session = sessionManager.CurrentSession.Session;
 			this.sessionManager = sessionManager;
@@ -32,19 +34,25 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			this.signalRService = signalRService;
 			this.mapper = mapper;
 			this.nodeService = nodeService;
+			this.sessionService = sessionService;
 			subscriptionManager.NodeMonitorUpdate += SubscriptionManager_MonitoredItemUpdate;
 			subscriptionManager.SessionEvent += SubscriptionManager_SessionEvent;
 		}
 
-		public NodeReferenceEntity Subscribe(NodeReferenceEntity nodeRef)
+		public async Task<NodeReferenceEntity> SubscribeAsync(NodeReferenceEntity nodeRef)
 		{
-			return subscriptionManager.Subscribe(nodeRef);
+			var newNodeRef = subscriptionManager.Subscribe(nodeRef);
+			await nodeService.UpsertConfigAsync(newNodeRef);
+			return newNodeRef;
 		}
 
-		public void DeleteSubscription(string subscriptionId)
+		public async Task DeleteSubscriptionAsync(string subscriptionId, string nodeId)
 		{
 			var subscription = uint.Parse(subscriptionId);
 			subscriptionManager.DeleteSubscription(subscription);
+			var nodeRef = await nodeService.FindNodeByNodeIdAsync(nodeId);
+			nodeRef.SubscriptionId = null;
+			await nodeService.UpsertConfigAsync(nodeRef);
 		}
 
 		public IEnumerable<SubscriptionDTO> GetActiveSubscriptions()
@@ -59,27 +67,27 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			return subscriptionManager.GetAllMonitoredItems();
 		}
 
-		private void AddByMilliseconds(NodeValue nodeData)
+		private async Task AddByMillisecondsAsync(NodeValue nodeData)
 		{
-			if (nodeData.MSecs <= 0 || nodeData.StoreTime == null)
+			if (nodeData.MSecs == null || nodeData.MSecs <= 0)
 				return;
 
-			var lastStored = tempNodes.Where(c => c.NodeId == nodeData.NodeId).OrderByDescending(c => c.StoreTime).FirstOrDefault();
+			var lastStored = tempNodes.Where(c => c.NodeId == nodeData.NodeId).FirstOrDefault();
 
-			if (lastStored == null)
+			if (lastStored == null || ((nodeData.StoreTime - lastStored.StoreTime.Value).Value.TotalSeconds <= nodeData.MSecs))
 			{
-				AddNewNode(nodeData, "msecs");
+				tempNodes.Add(nodeData);
 			}
-			else if ((lastStored.StoreTime.Value - nodeData.StoreTime).Value.TotalMilliseconds >= nodeData.MSecs)
+			else
 			{
-				AddNewNode(nodeData, "msecs");
-
+				await AddNewNodeAsync(nodeData, "msecs");
+				tempNodes.RemoveAll(c => c.NodeId == nodeData.NodeId);
 			}
 		}
 
-		private void AddByRange(NodeValue nodeData)
+		private async Task AddByRangeAsync(NodeValue nodeData)
 		{
-			if (nodeData.Range == 0)
+			if (nodeData.Range == null || nodeData.Range <= 0)
 				return;
 
 			int tempDbCount = tempNodes.Where(c => c.NodeId == nodeData.NodeId).Count();
@@ -91,32 +99,33 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			}
 			else
 			{
-				AddNewNode(nodeData, "range");
+				await AddNewNodeAsync(nodeData, "range");
 				tempNodes.RemoveAll(c => c.NodeId == nodeData.NodeId);
 			}
 		}
 
-		private async Task AddNewNode(NodeValue nodeData, string monitoringCategory)
+		private async Task AddNewNodeAsync(NodeValue nodeData, string monitoringCategory)
 		{
-			LoggerManager.Logger.Information($"[monitoring {monitoringCategory}] {nodeData.DisplayName} {nodeData.Value} {DateTimeOffset.UtcNow}");
+			LoggerManager.Logger.Information($"[monitoring {monitoringCategory}] {nodeData.DisplayName} {nodeData.Value}");
 
 			await nodeService.AddNodeValueAsync(nodeData);
-			await signalRService.SendNodeAction(nodeData, nodeData.SessionName);
+			await signalRService.SendNodeAsync(nodeData, nodeData.SessionName);
 			//await _azureMS.SendNodeAsync(entity);
 		}
 
-		private void SubscriptionManager_MonitoredItemUpdate(object sender, NodeValue node)
+		private async void SubscriptionManager_MonitoredItemUpdate(object sender, NodeValue node)
 		{
-			NodeReferenceEntity nodeConfig = nodeService.FindNodeByNodeIdAsync(node.NodeId).Result;
+			NodeReferenceEntity nodeConfig = await nodeService.FindNodeByNodeIdAsync(node.NodeId);
+			var sessionName = await sessionService.FindSessionAsync((int)nodeConfig.SessionEntityId);
 
+			node.SessionName = sessionName.Name;
 			node.DisplayName = nodeConfig.DisplayName;
 			node.MSecs = nodeConfig.MSecs;
 			node.Range = nodeConfig.Range;
 
-			node.SessionName = sessionManager.CurrentSession.Name;
 			node.StoreTime = DateTime.Now;
-			AddByMilliseconds(node);
-			AddByRange(node);
+			await AddByMillisecondsAsync(node);
+			await AddByRangeAsync(node);
 		}
 
 		/// <summary>
@@ -146,26 +155,26 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 						if (nodeRefConfig != null)
 						{
 							var nodeValueNew = nodeService.ReadNodeValueOnServer(monitoringItem.ResolvedNodeId.ToString());
-
+							var sessionName = await sessionService.FindSessionAsync((int)nodeRefConfig.SessionEntityId);
 							NodeValue nodeData = new()
 							{
-								SessionName = sessionManager.CurrentSession.Name,
+								SessionName = sessionName.Name,
 								DisplayName = nodeRefConfig.DisplayName,
 								StoreTime = DateTime.Now,
-								Value = nodeValueNew.Value.ToString(),
+								Value = nodeValueNew?.Value.ToString(),
 								NodeId = currentNodeId,
 								MSecs = nodeRefConfig.MSecs,
 								Range = nodeRefConfig.Range,
 							};
 
-							//if (nodeRefConfig == null && nodeValueNew != null)
-							//{
-							//	await AddNewNode(nodeData, "");
-							//	return;
-							//}
+							if (nodeRefConfig.SubscriptionId == null)
+							{
+								nodeRefConfig.SubscriptionId = subscriptionItems.Id.ToString();
+								await nodeService.UpsertConfigAsync(nodeRefConfig);
+							}
 
-							AddByMilliseconds(nodeData);
-							AddByRange(nodeData);
+							await AddByMillisecondsAsync(nodeData);
+							await AddByRangeAsync(nodeData);
 						}
 					}
 				}

@@ -1,5 +1,6 @@
 ﻿using Opc.Ua;
 using Opc.Ua.Client;
+using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
 using Qia.Opc.Domain.Entities;
 
@@ -13,8 +14,12 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		//delegates
 		public delegate void NodeMonitorUpdateHandler(object sender, NodeValue node);
 		public event NodeMonitorUpdateHandler NodeMonitorUpdate;
+
 		public delegate void SessionEventHandler(ISession session, NotificationEventArgs e);
 		public event SessionEventHandler SessionEvent;
+
+		public delegate void EventMessageHandler(object sender, EventData e);
+		public event EventMessageHandler EventMessage;
 		//
 		private NotificationEventHandler m_SessionNotification = null;
 		private PublishStateChangedEventHandler m_PublishStatusChanged = null;
@@ -126,7 +131,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 				};
 
 				var node = sessionManager.CurrentSession.Session.Browse(null, null, 0u, new BrowseDescriptionCollection() { desc }, out var results, out var diagnosticInfos);
-				var t = nodeManager.FindNode(reference.NodeId);
+				var t = nodeManager.FindNodeOnServer(reference.NodeId);
 
 				if (node == null)
 				{
@@ -189,13 +194,22 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 		private void SubscriptionStateChanged(Subscription subscription, SubscriptionStateChangedEventArgs e)
 		{
+			EventMessage?.Invoke(this, new EventData
+			{
+				Message = e.Status.ToString(),
+				Title = "Subscription state"
+			});
 			LoggerManager.Logger.Information(e.ToString());
 		}
 
 		private void PublishStatusChanged(Subscription subscription, PublishStateChangedEventArgs e)
 		{
+			EventMessage?.Invoke(this, new EventData
+			{
+				Message = e.Status.ToString(),
+				Title = "Publish state"
+			});
 			LoggerManager.Logger.Information(e.ToString());
 		}
-
 	}
 }

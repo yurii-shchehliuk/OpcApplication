@@ -11,16 +11,23 @@ namespace Qia.Opc.Infrastrucutre.Services.Communication
 {
 	public class ChatHub : Hub
 	{
-		public static string connectionId = "";
-
 		public override Task OnConnectedAsync()
 		{
 			var httpContext = Context.Features.Get<IHttpContextFeature>();
-			var connectionId = Context.ConnectionId; 
+			var connectionId = Context.ConnectionId;
 
 			Console.WriteLine($"# Connected {connectionId} from: {httpContext?.HttpContext?.Connection?.RemoteIpAddress?.ToString()}");
 
 			return base.OnConnectedAsync();
+		}
+
+		public override Task OnDisconnectedAsync(Exception exception)
+		{
+			var httpContext = Context.Features.Get<IHttpContextFeature>();
+			var connectionId = Context.ConnectionId;
+
+			Console.WriteLine($"# Disconnected {connectionId} from: {httpContext?.HttpContext?.Connection?.RemoteIpAddress?.ToString()}"); 
+			return base.OnDisconnectedAsync(exception);
 		}
 
 		#region frontend calls to server

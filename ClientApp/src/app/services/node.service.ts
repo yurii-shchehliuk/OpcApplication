@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, Subscription } from 'rxjs';
-import { environment } from 'src/enviroments/enviroment';
+import { environment } from 'src/environments/environment.development';
 import { NodeReference } from '../models/nodeModels';
+import { NotificationService } from '../shared/notification.service';
 
 @Injectable({
   providedIn: 'root',
@@ -30,8 +31,10 @@ export class NodeService {
   }
 
   getConfigNodes() {
-    this.http.get<NodeReference[]>(this.baseUrl + 'config/list').subscribe((res) => {
-      this.configNodesSubj.next(res);
-    });
+    this.http
+      .get<NodeReference[]>(this.baseUrl + 'config/list')
+      .subscribe((res) => {
+        this.configNodesSubj.next(res);
+      });
   }
 }

@@ -18,7 +18,7 @@ export class NodeChartComponent {
   nodeArray: NodeReference[] = [];
   datasets: ChartDataset[] = [];
   labels: string[] = [];
-  channelSource = '';
+  sessionSource = '';
 
   subscriptions: Subscription[] = [];
   newNode: NodeReference = (<Partial<NodeReference>>{}) as NodeReference;
@@ -33,10 +33,10 @@ export class NodeChartComponent {
 
   ngOnInit() {
     this.createChart();
-    // listen from selected channel
-    // signalr connection is created in channel-monitor
-    this.sessionService.getChannel.subscribe((data: string) => {
-      this.channelSource = data;
+    // listen from selected session
+    // signalr connection is created in session-monitor
+    this.sessionService.getSession.subscribe((data: string) => {
+      this.sessionSource = data;
 
       this.nodeArray = [];
       this.datasets = [];
@@ -79,12 +79,14 @@ export class NodeChartComponent {
 
   subscribeToNode(event: any, node: NodeReference) {
     if (node.subscriptionId) {
-      this.subscriptionService.deleteSubs(node.subscriptionId).subscribe(() => {
-        let oldNodeRef = this.nodeArray.findIndex(
-          (c) => c.nodeId === node.nodeId
-        );
-        this.nodeArray[oldNodeRef].subscriptionId = null;
-      });
+      this.subscriptionService
+        .deleteSubs(node.subscriptionId, node.nodeId)
+        .subscribe(() => {
+          let oldNodeRef = this.nodeArray.findIndex(
+            (c) => c.nodeId === node.nodeId
+          );
+          this.nodeArray[oldNodeRef].subscriptionId = null;
+        });
     } else {
       this.subscriptionService.createSubs(node).subscribe((res) => {
         let oldNodeRef = this.nodeArray.findIndex(
@@ -97,16 +99,19 @@ export class NodeChartComponent {
 
   addConfigNode() {
     this.nodeService.addConfigNode(this.newNode);
+    this.newNode = (<Partial<NodeReference>>{}) as NodeReference;
   }
 
   removeNode(node: NodeReference) {
-    this.subscriptionService.deleteSubs(node.subscriptionId!).subscribe();
+    this.subscriptionService
+      .deleteSubs(node.subscriptionId!, node.nodeId)
+      .subscribe();
     this.nodeService.deleteConfigNode(node.nodeId);
     this.refreshChart();
   }
 
   hideNode(event: any, nodeId: string) {
-    // this.sessionService.nodeMonitor(this.newNode, this.channelSource, 'unmonitor');
+    // this.sessionService.nodeMonitor(this.newNode, this.sessionSource, 'unmonitor');
 
     let dataset = this.datasets.find((c) => c.label === nodeId);
     if (!dataset) return;
@@ -127,11 +132,15 @@ export class NodeChartComponent {
     event.preventDefault();
   }
 
-  getSubscriptionIcon(subscriptionId: string | null): string {
-    if (subscriptionId) {
+  getSubscriptionIcon(item: NodeReference): string {
+    if (item.subscriptionId && this.getNodeValue(item.nodeId) != 0) {
       return 'bi-send-dash';
     }
     return 'bi-send-plus';
+  }
+
+  populateNode(node: NodeReference) {
+    this.newNode = JSON.parse(JSON.stringify(node));
   }
 
   protected getNodeValue(nodeId: string) {

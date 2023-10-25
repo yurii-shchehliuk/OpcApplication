@@ -71,7 +71,7 @@ namespace Qia.Opc.Domain.Core
 				// configure rolling file sink
 				const int MAX_LOGFILE_SIZE = 1024 * 1024;
 				const int MAX_RETAINED_LOGFILES = 2;
-				loggerConfiguration.WriteTo.File(_logFileName, fileSizeLimitBytes: MAX_LOGFILE_SIZE, flushToDiskInterval: _logFileFlushTimeSpanSec, rollOnFileSizeLimit: true, retainedFileCountLimit: MAX_RETAINED_LOGFILES);
+				//loggerConfiguration.WriteTo.File(_logFileName, fileSizeLimitBytes: MAX_LOGFILE_SIZE, flushToDiskInterval: _logFileFlushTimeSpanSec, rollOnFileSizeLimit: true, retainedFileCountLimit: MAX_RETAINED_LOGFILES);
 			}
 
 			Logger = loggerConfiguration.CreateLogger();

@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.DTO;
 using Qia.Opc.Domain.Entities.Enums;
 using Qia.Opc.OPCUA.Connector.Entities;
@@ -44,6 +45,9 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		/// </summary>
 		public uint UnsuccessfulConnectionCount;
 
+		public delegate void EventMessageHandler(object sender, EventData e);
+		public event EventMessageHandler EventMessage;
+
 		public SessionManager(ApplicationConfiguration applicationConfiguration, IMapper mapper)
 		{
 			this.mapper = mapper;
@@ -52,33 +56,29 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 		}
 
-		public async Task<OPCUASession> CreateUniqueSession(SessionDTO sessionDto)
+		public OPCUASession CreateUniqueSession(SessionDTO sessionDto)
 		{
-			//remove existing session from memory and recreate
-			if (_currentSession != null &&_currentSession.Name == sessionDto.Name && _currentSession.EndpointUrl == sessionDto.EndpointUrl)
+			//reconnect
+			if (_currentSession != null && _currentSession.Name == sessionDto.Name && _currentSession.EndpointUrl == sessionDto.EndpointUrl)
 			{
 				RemoveSession(_currentSession.SessionId);
 			}
 
 			_currentSession = new OPCUASession();
-			bool sessionLocked = false;
 			EndpointDescription selectedEndpoint = null;
 			ConfiguredEndpoint configuredEndpoint = null;
 			try
 			{
-				sessionLocked = await LockSessionAsync();
-
 				_currentSession.EndpointUrl = sessionDto.EndpointUrl;
 
 				// release the session to not block for high network timeouts
-				sessionLocked = false;
 
 				// Select the endpoint based on given URL and security preference.
-				selectedEndpoint = CoreClientUtils.SelectEndpoint(_applicationConfiguration, sessionDto.EndpointUrl, useSecurity: ApplicationConfigBuilder.UseSecurity);
+				selectedEndpoint = CoreClientUtils.SelectEndpoint(_applicationConfiguration, _currentSession.EndpointUrl, useSecurity: ApplicationConfigBuilder.UseSecurity);
 
 				configuredEndpoint = new ConfiguredEndpoint(null, selectedEndpoint, EndpointConfiguration.Create(_applicationConfiguration));
 
-				Logger.Information($"Create {(ApplicationConfigBuilder.UseSecurity ? "secured" : "unsecured")} session for endpoint URI: '{sessionDto.EndpointUrl}' name: '{sessionDto.Name}' with timeout of {_currentSession.ExpiryDuration} h.");
+				Logger.Information($"Create {(ApplicationConfigBuilder.UseSecurity ? "secured" : "unsecured")} session for endpoint URI: '{_currentSession.EndpointUrl}' name: '{sessionDto.Name}' with timeout of {_currentSession.ExpiryDuration} h.");
 
 				// Create an OPC UA session with the selected endpoint.
 				var session = global::Opc.Ua.Client.Session.Create(
@@ -117,46 +117,48 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			{
 				if (_currentSession.Session != null)
 				{
-					sessionLocked = await LockSessionAsync();
-					if (sessionLocked)
+
+					Logger.Information($"Session successfully created with Id {_currentSession.Session.SessionId}.");
+					if (!selectedEndpoint.EndpointUrl.Equals(configuredEndpoint.EndpointUrl.AbsoluteUri, StringComparison.OrdinalIgnoreCase))
 					{
-						Logger.Information($"Session successfully created with Id {_currentSession.Session.SessionId}.");
-						if (!selectedEndpoint.EndpointUrl.Equals(configuredEndpoint.EndpointUrl.AbsoluteUri, StringComparison.OrdinalIgnoreCase))
-						{
-							Logger.Information($"the Server has updated the EndpointUrl to '{selectedEndpoint.EndpointUrl}'");
-						}
-
-						_currentSession.Session.KeepAliveInterval = OpcKeepAliveInterval * 1000;
-						_currentSession.Session.KeepAlive += StandardClient_KeepAlive;
-
-						// fetch the namespace array and cache it. it will not change as long the session exists.
-						DataValue namespaceArrayNodeValue = _currentSession.Session.ReadValue(VariableIds.Server_NamespaceArray);
-						_namespaceTable.Update(namespaceArrayNodeValue.GetValue<string[]>(null));
-
-						// show the available namespaces
-						Logger.Information($"The session to endpoint '{selectedEndpoint.EndpointUrl}' has {_namespaceTable.Count} entries in its namespace array:");
-						int i = 0;
-						foreach (var ns in _namespaceTable.ToArray())
-						{
-							Logger.Information($"Namespace index {i++}: {ns}");
-						}
-
-						// fetch the minimum supported item sampling interval from the server.
-						DataValue minSupportedSamplingInterval = _currentSession.Session.ReadValue(VariableIds.Server_ServerCapabilities_MinSupportedSampleRate);
-						_minSupportedSamplingInterval = minSupportedSamplingInterval.GetValue(0);
-						Logger.Information($"The server on endpoint '{selectedEndpoint.EndpointUrl}' supports a minimal sampling interval of {_minSupportedSamplingInterval} ms.");
-						_currentSession.State = SessionState.Connected;
+						Logger.Information($"the Server has updated the EndpointUrl to '{selectedEndpoint.EndpointUrl}'");
 					}
-					else
+
+					_currentSession.Session.KeepAliveInterval = OpcKeepAliveInterval * 1000;
+					_currentSession.Session.KeepAlive += StandardClient_KeepAlive;
+
+					// fetch the namespace array and cache it. it will not change as long the session exists.
+					DataValue namespaceArrayNodeValue = _currentSession.Session.ReadValue(VariableIds.Server_NamespaceArray);
+					_namespaceTable.Update(namespaceArrayNodeValue.GetValue<string[]>(null));
+
+					// show the available namespaces
+					Logger.Information($"The session to endpoint '{selectedEndpoint.EndpointUrl}' has {_namespaceTable.Count} entries in its namespace array:");
+					int i = 0;
+					foreach (var ns in _namespaceTable.ToArray())
 					{
-						_currentSession.State = SessionState.Disconnected;
+						Logger.Information($"Namespace index {i++}: {ns}");
 					}
+
+					// fetch the minimum supported item sampling interval from the server.
+					DataValue minSupportedSamplingInterval = _currentSession.Session.ReadValue(VariableIds.Server_ServerCapabilities_MinSupportedSampleRate);
+					_minSupportedSamplingInterval = minSupportedSamplingInterval.GetValue(0);
+					Logger.Information($"The server on endpoint '{selectedEndpoint.EndpointUrl}' supports a minimal sampling interval of {_minSupportedSamplingInterval} ms.");
+					_currentSession.State = SessionState.Connected;
+				}
+				else
+				{
+					_currentSession.State = SessionState.Disconnected;
 				}
 			}
 		}
 
 		public void TryGetSession(string sessionId, out OPCUASession session)
 		{
+			if (sessionId == null)
+			{
+				session = null;
+				return;
+			}
 			_sessions.TryGetValue(sessionId, out session);
 			if (session != null)
 				session.LastAccessed = DateTime.UtcNow;
@@ -175,9 +177,16 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 		public bool RemoveSession(string sessionId)
 		{
-			var result = _sessions.TryRemove(sessionId, out _);
-			_currentSession = new OPCUASession();
-			return result;
+			try
+			{
+				var result = _sessions.TryRemove(sessionId, out _);
+				_currentSession = new OPCUASession();
+				return result;
+			}
+			catch (Exception ex)
+			{
+				return false;
+			}
 		}
 
 
@@ -203,6 +212,11 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 							Logger.Information($"Missed KeepAlives: {MissedKeepAlives}");
 							if (MissedKeepAlives >= OpcKeepAliveDisconnectThreshold)
 							{
+								EventMessage?.Invoke(this, new EventData
+								{
+									Message = e.Status.ToString(),
+									Title = "Session state"
+								});
 								Logger.Warning($"Hit configured missed keep alive threshold of {OpcKeepAliveDisconnectThreshold}. Disconnecting the session to endpoint {session.ConfiguredEndpoint.EndpointUrl}.");
 								session.KeepAlive -= StandardClient_KeepAlive;
 								Task t = Task.Run(async () => await DisconnectAsync());
@@ -231,19 +245,6 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		}
 
 		/// <summary>
-		/// Take the session semaphore.
-		/// </summary>
-		public async Task<bool> LockSessionAsync()
-		{
-			//await _opcSessionSemaphore.WaitAsync(_sessionCancelationToken);
-			if (_sessionCancelationToken.IsCancellationRequested)
-			{
-				return false;
-			}
-			return true;
-		}
-
-		/// <summary>
 		/// Disconnects a session and removes all subscriptions on it and marks all nodes on those subscriptions
 		/// as unmonitored.
 		/// </summary>
@@ -266,6 +267,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 			RemoveSession(_currentSession.SessionId);
 			MissedKeepAlives = 0;
+			await Task.CompletedTask;
 		}
 		/// <summary>
 		/// Internal disconnect method. Caller must have taken the _opcSessionSemaphore.
@@ -278,12 +280,11 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		/// <summary>
 		/// Shutdown the current session if it is connected.
 		/// </summary>
-		public async Task ShutdownAsync()
+		public void ShutdownAsync()
 		{
 			bool sessionLocked = false;
 			try
 			{
-				sessionLocked = await LockSessionAsync();
 
 				// if the session is connected, close it
 				if (sessionLocked && (_currentSession.State == SessionState.Connecting || _currentSession.State == SessionState.Connected))
@@ -322,7 +323,6 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		}
 
 		private CancellationTokenSource _sessionCancelationTokenSource;
-		private CancellationToken _sessionCancelationToken;
 		private NamespaceTable _namespaceTable;
 		private double _minSupportedSamplingInterval;
 

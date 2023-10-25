@@ -13,9 +13,14 @@ namespace Qia.Opc.Infrastrucutre.Services.Communication
 			_hubConnection = _hubContext;
 		}
 
-		public async Task SendNodeAction(object nodeData, string groupName)
+		public async Task SendNodeAsync(object nodeData, string groupName)
 		{
 			await _hubConnection.Clients.Group(groupName).SendAsync("SendNodeAction", nodeData);
+		}
+
+		public async Task SendEventMessageAsync(object eventData, string groupName)
+		{
+			await _hubConnection.Clients.Group(groupName).SendAsync("SendEventMessageAction", eventData);
 		}
 	}
 }

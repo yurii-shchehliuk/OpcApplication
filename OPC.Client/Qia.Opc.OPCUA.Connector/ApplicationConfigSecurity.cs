@@ -6,6 +6,7 @@ namespace Qia.Opc.OPCUA.Connector
 {
 	using global::Opc.Ua.Security.Certificates;
 	using Qia.Opc.Domain.Core;
+	using Qia.Opc.OPCUA.Connector.Services;
 	using System.Collections.Generic;
 	using System.IO;
 	using System.Threading.Tasks;
@@ -23,10 +24,9 @@ namespace Qia.Opc.OPCUA.Connector
 		/// <summary>
 		/// Certficate store configuration for own, trusted peer, issuer and rejected stores.
 		/// </summary>
-		public static string OpcOwnCertStoreType { get; set; } = CertificateStoreType.Directory;
+		public static string OpcOwnCertStoreType { get; set; } = "AzureKeyVault";//CertificateStoreType.X509Store;
 		public static string OpcOwnCertDirectoryStorePathDefault => "pki/own";
 		public static string OpcOwnCertX509StorePathDefault => "CurrentUser\\UA_MachineDefault";
-		public static string OpcOwnCertStorePath { get; set; } = OpcOwnCertDirectoryStorePathDefault;
 
 		public static string OpcTrustedCertDirectoryStorePathDefault => "pki/trusted";
 		public static string OpcTrustedCertStorePath { get; set; } = OpcTrustedCertDirectoryStorePathDefault;
@@ -88,35 +88,37 @@ namespace Qia.Opc.OPCUA.Connector
 		/// <summary>
 		/// Configures OPC stack certificates.
 		/// </summary>
-		public async Task InitApplicationSecurityAsync()
+		public async Task InitApplicationSecurityAsync(KeyVaultService keyVaultService)
 		{
 			// security configuration
-			ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration();
-
-			// configure trusted issuer certificates store
-			ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates = new CertificateTrustList();
-			ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType = CertificateStoreType.Directory;
-			ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath = OpcIssuerCertStorePath;
+			ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
+			{
+				// configure trusted issuer certificates store
+				TrustedIssuerCertificates = new CertificateTrustList()
+			};
+			//ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType = OpcOwnCertStoreType;
+			//ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath = OpcIssuerCertStorePath;
 			LoggerManager.Logger.Information($"Trusted Issuer store type is: {ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType}");
 			LoggerManager.Logger.Information($"Trusted Issuer Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath}");
 
 			// configure trusted peer certificates store
 			ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates = new CertificateTrustList();
-			ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StoreType = CertificateStoreType.Directory;
-			ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath = OpcTrustedCertStorePath;
+			//{
+			//	StoreType = OpcOwnCertStoreType,
+			//	StorePath = OpcTrustedCertStorePath
+			//};
 			LoggerManager.Logger.Information($"Trusted Peer Certificate store type is: {ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StoreType}");
 			LoggerManager.Logger.Information($"Trusted Peer Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}");
 
 			// configure rejected certificates store
 			ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore = new CertificateTrustList();
-			ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StoreType = CertificateStoreType.Directory;
-			ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StorePath = OpcRejectedCertStorePath;
+			//{
+			//	StoreType = OpcOwnCertStoreType,
+			//	StorePath = OpcRejectedCertStorePath
+			//};
 
 			LoggerManager.Logger.Information($"Rejected certificate store type is: {ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StoreType}");
 			LoggerManager.Logger.Information($"Rejected Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.RejectedCertificateStore.StorePath}");
-
-			// this is a security risk and should be set to true only for debugging purposes
-			ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates = false;
 
 			// we allow SHA1 certificates for now as many OPC Servers still use them
 			ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates = false;
@@ -127,12 +129,14 @@ namespace Qia.Opc.OPCUA.Connector
 			LoggerManager.Logger.Information($"Minimum certificate key size set to {ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize}");
 
 			// configure application certificate store
-			ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier();
-			ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StoreType = OpcOwnCertStoreType;
-			ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath = OpcOwnCertStorePath;
-			ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.SubjectName = ApplicationConfiguration.ApplicationName;
-			LoggerManager.Logger.Information($"Application Certificate store type is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StoreType}");
-			LoggerManager.Logger.Information($"Application Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath}");
+			ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier()
+			{
+				//StoreType = OpcOwnCertStoreType,
+				//StorePath = appSettings.KeyVaultUri,
+				SubjectName = ApplicationConfiguration.ApplicationName
+			};
+			//LoggerManager.Logger.Information($"Application Certificate store type is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StoreType}");
+			//LoggerManager.Logger.Information($"Application Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath}");
 			LoggerManager.Logger.Information($"Application Certificate subject name is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.SubjectName}");
 
 			// handle cert validation
@@ -146,6 +150,7 @@ namespace Qia.Opc.OPCUA.Connector
 
 			// update security information
 			await ApplicationConfiguration.CertificateValidator.Update(ApplicationConfiguration.SecurityConfiguration);
+			#region other configuration
 
 			// remove issuer and trusted certificates with the given thumbprints
 			if (ThumbprintsToRemove?.Count > 0)
@@ -184,7 +189,6 @@ namespace Qia.Opc.OPCUA.Connector
 			}
 
 			// update application certificate if requested or use the existing certificate
-			X509Certificate2 certificate = null;
 			if (!string.IsNullOrEmpty(NewCertificateBase64String) || !string.IsNullOrEmpty(NewCertificateFileName))
 			{
 				if (!await UpdateApplicationCertificateAsync(NewCertificateBase64String, NewCertificateFileName, CertificatePassword, PrivateKeyBase64String, PrivateKeyFileName))
@@ -192,9 +196,12 @@ namespace Qia.Opc.OPCUA.Connector
 					throw new Exception("Update/Setting of the application certificate failed.");
 				}
 			}
+			#endregion
 
 			// use existing certificate, if it is there
-			certificate = await ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Find(true);
+			X509Certificate2 certificate = null;
+			//certificate = await ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Find(true);
+			//certificate = await this.keyVaultService.GetCertificate(ApplicationConfiguration.ApplicationName);
 
 			// create a self signed certificate if there is none
 			if (certificate == null)
@@ -217,9 +224,11 @@ namespace Qia.Opc.OPCUA.Connector
 								null,
 								null
 								);
+
+				//await this.keyVaultService.StoreCertificateAsync(ApplicationConfiguration.ApplicationName, certificate);
+
 				LoggerManager.Logger.Information($"Application certificate with thumbprint '{certificate.Thumbprint}' created.");
 
-				// update security information
 				ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate = certificate ?? throw new Exception("OPC UA application certificate can not be created! Cannot continue without it!");
 				await ApplicationConfiguration.CertificateValidator.UpdateCertificate(ApplicationConfiguration.SecurityConfiguration);
 			}
@@ -227,6 +236,9 @@ namespace Qia.Opc.OPCUA.Connector
 			{
 				LoggerManager.Logger.Information($"Application certificate with thumbprint '{certificate.Thumbprint}' found in the application certificate store.");
 			}
+
+			//// update security information
+
 			//ApplicationConfiguration.ApplicationUri = GetApplicationUriFromCertificate(certificate);
 			LoggerManager.Logger.Information($"Application certificate is for ApplicationUri '{ApplicationConfiguration.ApplicationUri}', ApplicationName '{ApplicationConfiguration.ApplicationName}' and Subject is '{ApplicationConfiguration.ApplicationName}'");
 
@@ -237,11 +249,9 @@ namespace Qia.Opc.OPCUA.Connector
 				// ensure it is trusted
 				try
 				{
-					using (ICertificateStore trustedStore = ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
-					{
-						LoggerManager.Logger.Information($"Adding server certificate to trusted peer store. StorePath={ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}");
-						await trustedStore.Add(certificate);
-					}
+					using ICertificateStore trustedStore = ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
+					LoggerManager.Logger.Information($"Adding server certificate to trusted peer store. StorePath={ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}");
+					await trustedStore.Add(certificate);
 				}
 				catch (Exception e)
 				{
@@ -522,7 +532,7 @@ namespace Qia.Opc.OPCUA.Connector
 			}
 
 			LoggerManager.Logger.Information($"Starting to add certificate(s) to the {(issuerCertificate ? "trusted issuer" : "trusted peer")} store.");
-			X509Certificate2Collection certificatesToAdd = new X509Certificate2Collection();
+			X509Certificate2Collection certificatesToAdd = new();
 			try
 			{
 				// validate the input and build issuer cert collection
@@ -546,7 +556,7 @@ namespace Qia.Opc.OPCUA.Connector
 						}
 						else
 						{
-							LoggerManager.Logger.Error($"The provided string '{certificateBase64String.Substring(0, 10)}...' is not a valid base64 string.");
+							LoggerManager.Logger.Error($"The provided string '{certificateBase64String[..10]}...' is not a valid base64 string.");
 							return false;
 						}
 					}
@@ -701,7 +711,7 @@ namespace Qia.Opc.OPCUA.Connector
 				{
 					try
 					{
-						trustedStore.AddCRL(newCrl);
+						await trustedStore.AddCRL(newCrl);
 						LoggerManager.Logger.Information($"The new CRL issued by '{newCrl.Issuer}' was added to the trusted peer store.");
 					}
 					catch (Exception e)

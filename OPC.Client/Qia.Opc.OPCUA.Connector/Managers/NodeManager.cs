@@ -11,7 +11,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			this.sessionManager = sessionManager;
 		}
 
-		public Node FindNode(string nodeId)
+		public Node FindNodeOnServer(string nodeId)
 		{
 
 			NodeId nodeIdToSearch = new NodeId(nodeId);

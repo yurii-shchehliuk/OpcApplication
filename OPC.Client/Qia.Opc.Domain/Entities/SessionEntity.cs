@@ -10,5 +10,6 @@ namespace Qia.Opc.Domain.Entities
 		public string SessionId { get; set; }
 		public string Name { get; set; }
 		public string EndpointUrl { get; set; }
+		public ICollection<NodeReferenceEntity> NodeConfigs { get; set; }
 	}
 }

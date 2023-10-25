@@ -74,6 +74,7 @@ namespace OpcServer
                     text += e.InnerException.Message;
                 }
             }
+            Console.ReadLine();
         }
     }
 }

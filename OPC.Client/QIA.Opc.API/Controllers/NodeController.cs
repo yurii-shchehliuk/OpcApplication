@@ -17,14 +17,14 @@ namespace QIA.Opc.API.Controllers
 		[HttpGet("config/list")]
 		public async Task<ActionResult<IEnumerable<NodeReferenceEntity>>> GetConfigNodes()
 		{
-			var result = await nodeService.GetConfigNodes();
+			var result = await nodeService.GetConfigNodesAsync();
 			return Ok(result);
 		}
 
 		[HttpDelete("{nodeId}")]
 		public async Task<IActionResult> DeleteConfigNode(string nodeId)
 		{
-			await nodeService.DeleteConfigNode(nodeId);
+			await nodeService.DeleteConfigNodeAsync(nodeId);
 			return Ok();
 		}
 
@@ -32,7 +32,7 @@ namespace QIA.Opc.API.Controllers
 		[HttpPost("create")]
 		public async Task<ActionResult<NodeReferenceEntity>> CreateConfigNode([FromBody] NodeReferenceEntity nodeReference)
 		{
-			await nodeService.UpsertConfig(nodeReference);
+			await nodeService.AddConfigNodeAsync(nodeReference);
 			return Ok();
 		}
 	}

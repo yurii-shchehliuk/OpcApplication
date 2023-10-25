@@ -2,9 +2,10 @@
 {
     public interface IAppSettings
     {
-        string DbConnectionString { get; set; }
-        bool SaveToAzure { get; set; }
-        string TargetTable { get; set; }
-        AzureEventHub AzureEventHub { get; set; }
-    }
+        string DbConnectionString { get; }
+        bool SaveToAzure { get; }
+        string TargetTable { get; }
+		string KeyVaultUri { get; }
+        AzureEventHub AzureEventHub { get; }
+	}
 }

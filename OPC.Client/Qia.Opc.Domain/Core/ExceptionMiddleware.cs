@@ -33,7 +33,12 @@ namespace Qia.Opc.Domain.Core
 				var response = new
 				{
 					Status = HttpStatusCode.InternalServerError,
-					Message = new string[] { ex.Message, ex.StackTrace }
+					Message = new string[]
+					{
+						ex.Message,
+						ex.StackTrace,
+						ex.InnerException?.Message ?? ""
+					}
 				};
 				LoggerManager.Logger.Fatal(ex.Message + "{0}" + "{1}", ex.StackTrace, ex);
 

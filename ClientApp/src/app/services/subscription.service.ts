@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subscription } from 'rxjs';
-import { environment } from 'src/enviroments/enviroment';
+import { environment } from 'src/environments/environment.development';
 import { NodeReference } from '../models/nodeModels';
 
 @Injectable({
@@ -15,8 +15,8 @@ export class SubscriptionService {
     return this.http.post<NodeReference>(this.baseUrl + 'create', subscription);
   }
 
-  deleteSubs(subscriptionId: string) {
-    return this.http.delete(this.baseUrl + subscriptionId);
+  deleteSubs(subscriptionId: string, nodeId: string) {
+    return this.http.delete(this.baseUrl + subscriptionId + '/' + nodeId);
   }
 
   getSubsList() {
