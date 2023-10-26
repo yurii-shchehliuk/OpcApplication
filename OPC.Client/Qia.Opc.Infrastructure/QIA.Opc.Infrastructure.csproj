@@ -16,13 +16,14 @@
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="12.0.1" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.18.0" />
+    <PackageReference Include="MediatR" Version="12.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Http.Connections" Version="1.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.1.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Qia.Opc.OPCUA.Connector\Qia.Opc.OPCUA.Connector.csproj" />
-    <ProjectReference Include="..\Qia.Opc.Persistence\Qia.Opc.Persistence.csproj" />
+    <ProjectReference Include="..\Qia.Opc.OPCUA.Connector\QIA.Opc.OPCUA.Connector.csproj" />
+    <ProjectReference Include="..\Qia.Opc.Persistence\QIA.Opc.Persistence.csproj" />
   </ItemGroup>
 
 </Project>

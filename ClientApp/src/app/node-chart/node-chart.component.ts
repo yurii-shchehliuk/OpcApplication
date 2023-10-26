@@ -133,7 +133,7 @@ export class NodeChartComponent {
   }
 
   getSubscriptionIcon(item: NodeReference): string {
-    if (item.subscriptionId && this.getNodeValue(item.nodeId) != 0) {
+    if (item.subscriptionId) {
       return 'bi-send-dash';
     }
     return 'bi-send-plus';

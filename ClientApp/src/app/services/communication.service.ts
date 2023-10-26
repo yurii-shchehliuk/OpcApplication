@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { EventData, NodeValue } from '../models/nodeModels';
 import * as signalR from '@microsoft/signalr';
 import { environment } from 'src/environments/environment.development';
 import { NotificationService } from '../shared/notification.service';
+import { NodeValue } from '../models/nodeModels';
+import { EventData, LogCategory } from '../models/eventModels';
 
 @Injectable({
   providedIn: 'root',
@@ -55,7 +56,20 @@ export class CommunicationService {
 
   private listenEventMessage(method: string = 'SendEventMessageAction') {
     this.hubConnection.on(method, (data: EventData) => {
-      this.notificationService.showInfo(data.message, data.title);
+      switch (data.logCategory) {
+        case LogCategory.info:
+          this.notificationService.showInfo(data.message, data.title);
+          break;
+        case LogCategory.warning:
+          this.notificationService.showWarning(data.message, data.title);
+          break;
+        case LogCategory.error:
+          this.notificationService.showError(data.message, data.title);
+          break;
+        case LogCategory.success:
+          this.notificationService.showSuccess(data.message, data.title);
+          break;
+      }
     });
   }
 

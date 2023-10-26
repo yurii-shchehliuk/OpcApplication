@@ -23,8 +23,12 @@ export class SessionDialogComponent {
   }
 
   addSession() {
-    this.sessionData.sessionId = '';
-    this.sessionService.createEndpoint(this.sessionData);
+    if (this.addNew) {
+      this.sessionData.sessionId = '';
+      this.sessionService.createEndpoint(this.sessionData);
+    } else {
+      this.sessionService.updateSession(this.sessionData);
+    }
   }
 
   removeGroup() {

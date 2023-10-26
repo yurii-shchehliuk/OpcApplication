@@ -82,5 +82,11 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			var sessionEntity = mapper.Map<SessionEntity>(session);
 			return sessionEntity;
 		}
+
+		public async Task UpdateEndpointAsync(SessionEntity request)
+		{
+			await _sessionManager.DisconnectAsync();
+			await sessionRepo.UpsertAsync(request, c => c.Id == request.Id);
+		}
 	}
 }

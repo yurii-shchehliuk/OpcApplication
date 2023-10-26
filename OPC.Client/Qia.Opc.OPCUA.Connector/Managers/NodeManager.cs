@@ -32,9 +32,8 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 			catch (Exception ex)
 			{
-				Console.WriteLine("Error reading node value: " + ex.Message);
+				throw ex;
 			}
-			return null;
 		}
 	}
 }

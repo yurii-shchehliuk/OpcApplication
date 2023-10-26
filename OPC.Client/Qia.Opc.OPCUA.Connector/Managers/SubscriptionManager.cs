@@ -196,6 +196,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		{
 			EventMessage?.Invoke(this, new EventData
 			{
+				LogCategory = Domain.Entities.Enums.LogCategory.Info,
 				Message = e.Status.ToString(),
 				Title = "Subscription state"
 			});
@@ -206,6 +207,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		{
 			EventMessage?.Invoke(this, new EventData
 			{
+				LogCategory = Domain.Entities.Enums.LogCategory.Info,
 				Message = e.Status.ToString(),
 				Title = "Publish state"
 			});

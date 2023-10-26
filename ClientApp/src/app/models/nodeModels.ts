@@ -24,11 +24,6 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
-export interface EventData {
-  message: string;
-  title: string;
-}
-
 export enum NodeClass {
   Unspecified = 0,
   Object = 1,

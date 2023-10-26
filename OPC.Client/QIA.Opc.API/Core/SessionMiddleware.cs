@@ -1,14 +1,19 @@
-﻿using Qia.Opc.OPCUA.Connector.Managers;
+﻿using MediatR;
+using Qia.Opc.Infrastructure.Application;
+using Qia.Opc.OPCUA.Connector.Managers;
+using static Azure.Core.HttpHeader;
 
 namespace QIA.Opc.API.Core
 {
 	public class SessionMiddleware
 	{
 		private readonly RequestDelegate _next;
+		private readonly IMediator mediator;
 
-		public SessionMiddleware(RequestDelegate next)
+		public SessionMiddleware(RequestDelegate next, IMediator mediator)
 		{
 			_next = next;
+			this.mediator = mediator;
 		}
 
 		public async Task InvokeAsync(HttpContext context, SessionManager sessionManager)

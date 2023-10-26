@@ -57,10 +57,13 @@ export class SessionComponent {
     sessionData: SessionEntity = (<Partial<SessionEntity>>{}) as SessionEntity
   ): void {
     const sessionDialog = this.dialog.open(SessionDialogComponent, {
-      data: sessionData,
+      data: JSON.parse(JSON.stringify(sessionData)),
     });
 
     sessionDialog.afterClosed().subscribe({
+      next: (value) => {
+        this.sessionService.getSessionList();
+      },
       complete: () => {
         this.sessionService.getSessionList();
       },

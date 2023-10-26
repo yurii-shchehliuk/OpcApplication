@@ -63,10 +63,20 @@ export class SessionService {
           this.notifyService.showSuccess('Connected successfully', '');
         },
         error: (err) => {
-          this.notifyService.showError(
-            'Connection to the provided url failed',
-            ''
-          );
+          console.log(err);
+        },
+      });
+  }
+
+  updateSession(session: SessionEntity): Subscription {
+    return this.http
+      .put<SessionEntity>(this.baseUrl + 'update', session)
+      .subscribe({
+        next: (response: SessionEntity) => {
+          this.notifyService.showSuccess('Updated successfully', '');
+        },
+        error: (err) => {
+          this.notifyService.showError('Session update falied', '');
           console.log(err);
         },
       });

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
+using Qia.Opc.Infrastructure.Application;
 using Qia.Opc.Infrastrucutre.Services.Communication;
 using Qia.Opc.Infrastrucutre.Services.OPCUA;
 using Qia.Opc.Infrastrucutre.ServicesHosted;
@@ -18,7 +19,7 @@ using System.Text.Json;
 
 namespace QIA.Opc.API
 {
-    public class Program
+	public class Program
 	{
 		public async static Task Main(string[] args)
 		{
@@ -41,7 +42,7 @@ namespace QIA.Opc.API
 			builder.Services.AddSingleton<ApplicationConfiguration>(sp =>
 			{
 				KeyVaultService keyVaultService = sp.GetRequiredService<KeyVaultService>();
-				
+
 				var configBuilder = new ApplicationConfigBuilder(keyVaultService);
 				configBuilder.Init().Wait();
 
@@ -84,6 +85,12 @@ namespace QIA.Opc.API
 					options.ConnectionString = "Endpoint=https://dev-qia-opc-api-weu-sr.service.signalr.net;AccessKey=oOkPCAkUWCGJd/sKyYOByLbCSPyQbjssxrl1TIwf7jk=;Version=1.0;";
 				});
 			builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
+			builder.Services.AddMediatR((c) =>
+			{
+				c.RegisterServicesFromAssembly(typeof(EventMediatorCommand).Assembly);
+			});
+
 			builder.Services.AddEndpointsApiExplorer();
 			builder.Services.AddSwaggerGen(c =>
 			{
@@ -103,6 +110,7 @@ namespace QIA.Opc.API
 			// app run
 			app.Services.GetRequiredService<ApplicationConfiguration>();
 			await InitDbAsync(app.Services.CreateScope());
+			LoggerManager.Logger.Information("Application started");
 
 			// Configure the HTTP request pipeline.
 			if (!app.Environment.IsDevelopment())
@@ -139,7 +147,6 @@ namespace QIA.Opc.API
 
 			app.Run();
 		}
-
 
 		private static async Task InitDbAsync(IServiceScope scope)
 		{

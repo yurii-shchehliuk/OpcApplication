@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using MediatR;
+using Microsoft.AspNetCore.Mvc;
 using Qia.Opc.Domain.DTO;
 using Qia.Opc.Domain.Entities;
+using Qia.Opc.Infrastructure.Application;
 using Qia.Opc.Infrastrucutre.Services.OPCUA;
 using Qia.Opc.OPCUA.Connector.Entities;
 
@@ -9,10 +11,12 @@ namespace QIA.Opc.API.Controllers
 	public class SessionController : BaseController
 	{
 		private readonly SessionService sessionService;
+		private readonly IMediator mediator;
 
-		public SessionController(SessionService sessionService)
+		public SessionController(SessionService sessionService, IMediator mediator)
 		{
 			this.sessionService = sessionService;
+			this.mediator = mediator;
 		}
 
 		[HttpPost("connect")]
@@ -28,6 +32,12 @@ namespace QIA.Opc.API.Controllers
 			var newSession = await sessionService.CreateUniqueSessionAsync(request);
 			if (newSession == null)
 			{
+				await mediator.Publish(new EventMediatorCommand(new Qia.Opc.Domain.Common.EventData
+				{
+					LogCategory = Qia.Opc.Domain.Entities.Enums.LogCategory.Error,
+					Message = "Cannot connect to the provided URL",
+					Title = "Session exception"
+				}));
 				return BadRequest(StatusCodes.Status400BadRequest);
 			}
 			return Ok(newSession);
@@ -38,6 +48,13 @@ namespace QIA.Opc.API.Controllers
 		{
 			var session = await sessionService.CreateEndpointAsync(request);
 			return Ok(session);
+		}
+
+		[HttpPut("update")]
+		public async Task<ActionResult<SessionEntity>> UpdateEndpoint([FromBody] SessionEntity request)
+		{
+			await sessionService.UpdateEndpointAsync(request);
+			return Ok();
 		}
 
 		[HttpGet("{sessionId}")]

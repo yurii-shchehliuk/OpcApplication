@@ -70,7 +70,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			try
 			{
 				_currentSession.EndpointUrl = sessionDto.EndpointUrl;
-
+				_currentSession.Name = sessionDto.Name;
 				// release the session to not block for high network timeouts
 
 				// Select the endpoint based on given URL and security preference.
@@ -254,7 +254,8 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			{
 				try
 				{
-					_currentSession.Session.Close();
+					Logger.Information($"Closing session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully."); _currentSession.Session.Close();
+					Logger.Information($"Session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
 				}
 				catch
 				{
@@ -263,55 +264,12 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 			catch (Exception e)
 			{
-				Logger.Error(e, "Error in DisconnectAsyn {0} {1}");
+				Logger.Error(e, $"Error while closing session to endpoint '{_currentSession.EndpointUrl}'.");
 			}
+
 			RemoveSession(_currentSession.SessionId);
 			MissedKeepAlives = 0;
 			await Task.CompletedTask;
-		}
-		/// <summary>
-		/// Internal disconnect method. Caller must have taken the _opcSessionSemaphore.
-		/// </summary>
-		private void InternalDisconnect()
-		{
-
-		}
-
-		/// <summary>
-		/// Shutdown the current session if it is connected.
-		/// </summary>
-		public void ShutdownAsync()
-		{
-			bool sessionLocked = false;
-			try
-			{
-
-				// if the session is connected, close it
-				if (sessionLocked && (_currentSession.State == SessionState.Connecting || _currentSession.State == SessionState.Connected))
-				{
-					try
-					{
-						Logger.Information($"Closing session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
-						_currentSession.Session.Close();
-						_currentSession.State = SessionState.Disconnected;
-						Logger.Information($"Session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
-					}
-					catch (Exception e)
-					{
-						Logger.Error(e, $"Error while closing session to endpoint '{_currentSession.EndpointUrl}'.");
-						_currentSession.State = SessionState.Disconnected;
-						return;
-					}
-				}
-			}
-			finally
-			{
-				if (sessionLocked)
-				{
-					// cancel all threads waiting on the session semaphore
-					_sessionCancelationTokenSource.Cancel();
-				}
-			}
 		}
 
 		public IEnumerable<Domain.Entities.SessionEntity> GetSessionList()

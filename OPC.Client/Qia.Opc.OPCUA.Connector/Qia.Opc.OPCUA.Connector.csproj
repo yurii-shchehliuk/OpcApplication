@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Qia.Opc.Domain\Qia.Opc.Domain.csproj" />
+    <ProjectReference Include="..\Qia.Opc.Domain\QIA.Opc.Domain.csproj" />
   </ItemGroup>
 
 </Project>

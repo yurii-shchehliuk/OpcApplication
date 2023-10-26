@@ -7,13 +7,13 @@ Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-co
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QIA.Opc.API", "QIA.Opc.API\QIA.Opc.API.csproj", "{8971089E-90D3-4E97-8DFF-A93670997C85}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qia.Opc.Domain", "Qia.Opc.Domain\Qia.Opc.Domain.csproj", "{F0F50BB7-7E32-464E-8EFE-DC59AFB18DF0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QIA.Opc.Domain", "Qia.Opc.Domain\QIA.Opc.Domain.csproj", "{F0F50BB7-7E32-464E-8EFE-DC59AFB18DF0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qia.Opc.Infrastrucutre", "Qia.Opc.Infrastructure\Qia.Opc.Infrastrucutre.csproj", "{03032660-8AD8-4FB6-BD2F-3F64D794406B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QIA.Opc.Infrastructure", "Qia.Opc.Infrastructure\QIA.Opc.Infrastructure.csproj", "{03032660-8AD8-4FB6-BD2F-3F64D794406B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qia.Opc.OPCUA.Connector", "Qia.Opc.OPCUA.Connector\Qia.Opc.OPCUA.Connector.csproj", "{7EBAF860-EAB9-400B-88B3-17541AFD7AA8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QIA.Opc.OPCUA.Connector", "Qia.Opc.OPCUA.Connector\QIA.Opc.OPCUA.Connector.csproj", "{7EBAF860-EAB9-400B-88B3-17541AFD7AA8}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qia.Opc.Persistence", "Qia.Opc.Persistence\Qia.Opc.Persistence.csproj", "{D5C4774A-423B-4BAE-9910-332583185FD5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QIA.Opc.Persistence", "Qia.Opc.Persistence\QIA.Opc.Persistence.csproj", "{D5C4774A-423B-4BAE-9910-332583185FD5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

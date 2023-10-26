@@ -1,9 +1,14 @@
 ﻿using AutoMapper;
+using MediatR;
 using Opc.Ua;
+using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Entities;
+using Qia.Opc.Infrastructure.Application;
 using Qia.Opc.OPCUA.Connector.Entities;
 using Qia.Opc.OPCUA.Connector.Managers;
 using Qia.Opc.Persistence.Repository;
+using System.Diagnostics;
+using System.Reflection;
 
 namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 {
@@ -15,9 +20,15 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 		private readonly IDataRepository<NodeValue> nodeDataRepo;
 		private readonly IDataRepository<SessionEntity> sessionRepo;
 		private readonly SessionService sessionService;
+		private readonly IMediator mediator;
 
 		public NodeService(SessionManager sessionManager,
-		NodeManager nodeManager, IDataRepository<NodeReferenceEntity> nodeRepository, IDataRepository<NodeValue> nodeDataRepo, IDataRepository<SessionEntity> sessionRepo, SessionService sessionService)
+					 NodeManager nodeManager,
+					 IDataRepository<NodeReferenceEntity> nodeRepository,
+					 IDataRepository<NodeValue> nodeDataRepo,
+					 IDataRepository<SessionEntity> sessionRepo,
+					 SessionService sessionService,
+					 IMediator mediator)
 		{
 			this.opcSession = sessionManager.CurrentSession;
 			this.nodeManager = nodeManager;
@@ -25,6 +36,7 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 			this.nodeDataRepo = nodeDataRepo;
 			this.sessionRepo = sessionRepo;
 			this.sessionService = sessionService;
+			this.mediator = mediator;
 		}
 
 		public async Task DeleteConfigNodeAsync(string nodeId)
@@ -42,16 +54,28 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 
 		public async Task AddConfigNodeAsync(NodeReferenceEntity nodeRef)
 		{
-			//prepare node
-			var node = nodeManager.FindNodeOnServer(nodeRef.NodeId);
-			nodeRef.NodeClass = node.NodeClass;
+			try
+			{
+				//prepare node
+				var node = nodeManager.FindNodeOnServer(nodeRef.NodeId);
+				nodeRef.NodeClass = node.NodeClass;
 
-			var session = sessionService.GetCurrentSession();
-			var sessionData = await sessionRepo.FindAsync(c => c.Name == session.Name);
+				var session = sessionService.GetCurrentSession();
+				var sessionData = await sessionRepo.FindAsync(c => c.Name == session.Name);
 
-			nodeRef.SessionEntityId = sessionData.Id;
-			//update
-			await nodeRepository.UpsertAsync(nodeRef, e => e.NodeId == nodeRef.NodeId);
+				nodeRef.SessionEntityId = sessionData.Id;
+				//update
+				await nodeRepository.UpsertAsync(nodeRef, e => e.NodeId == nodeRef.NodeId);
+			}
+			catch (Exception ex)
+			{
+				await mediator.Publish(new EventMediatorCommand(new EventData
+				{
+					LogCategory = Domain.Entities.Enums.LogCategory.Warning,
+					Message = ex.Message,
+					Title = "Node exception"
+				}));
+			}
 		}
 
 		public async Task UpsertConfigAsync(NodeReferenceEntity nodeRef)

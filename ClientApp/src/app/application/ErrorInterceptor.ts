@@ -18,13 +18,8 @@ export class ErrorInterceptor implements HttpInterceptor {
   ) {}
   intercept(
     request: HttpRequest<any>,
-    next: HttpHandler
+    next: HttpHandler,
   ): Observable<HttpEvent<any>> {
-    // const sessionId = sessionStorage.getItem('sessionId');
-    // if (!sessionId && !request.url.includes('session')) {
-    //   console.error('Session ID is not found in sessionStorage!');
-    //   return throwError('Session ID is not found!');
-    // }
 
     return next.handle(request).pipe(
       catchError((error: HttpErrorResponse) => {
@@ -33,7 +28,7 @@ export class ErrorInterceptor implements HttpInterceptor {
         if (error.error instanceof ErrorEvent) {
           errorMsg = `Error: ${error.error.message}`;
         } else {
-          errorMsg = `API Error: ${
+          errorMsg = `${
             error.error.message || error.message
           }, Status: ${error.status}`;
         }
