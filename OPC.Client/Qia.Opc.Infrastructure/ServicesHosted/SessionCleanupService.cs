@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Hosting;
-using Qia.Opc.Infrastrucutre.Services.OPCUA;
+using QIA.Opc.Infrastructure.Services.OPCUA;
 
-namespace Qia.Opc.Infrastrucutre.ServicesHosted
+namespace QIA.Opc.Infrastructure.ServicesHosted
 {
 	public class SessionCleanupService : IHostedService, IDisposable
 	{

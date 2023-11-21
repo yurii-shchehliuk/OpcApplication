@@ -2,11 +2,12 @@
 using Opc.Ua;
 using Opc.Ua.Client;
 using Qia.Opc.Domain.Common;
-using Qia.Opc.Domain.DTO;
 using Qia.Opc.Domain.Entities.Enums;
 using Qia.Opc.OPCUA.Connector.Entities;
+using QIA.Opc.Domain.Request;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Net.NetworkInformation;
 
 namespace Qia.Opc.OPCUA.Connector.Managers
 {
@@ -18,7 +19,6 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 	public class SessionManager
 	{
 		private readonly ApplicationConfiguration _applicationConfiguration;
-		private readonly IMapper mapper;
 		private ConcurrentDictionary<string, OPCUASession> _sessions = new ConcurrentDictionary<string, OPCUASession>();
 		private OPCUASession _currentSession;
 		private SessionReconnectHandler m_reconnectHandler;
@@ -48,15 +48,33 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		public delegate void EventMessageHandler(object sender, EventData e);
 		public event EventMessageHandler EventMessage;
 
-		public SessionManager(ApplicationConfiguration applicationConfiguration, IMapper mapper)
+		public SessionManager(ApplicationConfiguration applicationConfiguration)
 		{
-			this.mapper = mapper;
 			_applicationConfiguration = applicationConfiguration;
 			_namespaceTable = new NamespaceTable();
-
 		}
 
-		public OPCUASession CreateUniqueSession(SessionDTO sessionDto)
+		public IEnumerable<OPCUASession> GetSessionList()
+		{
+			var sessions = _sessions.Values.ToList();
+
+			return sessions;
+		}
+
+		public void TryGetSession(string sessionId, out OPCUASession session)
+		{
+			if (sessionId == null)
+			{
+				session = null;
+				return;
+			}
+			_sessions.TryGetValue(sessionId, out session);
+			if (session != null)
+				session.LastAccessed = DateTime.UtcNow;
+			_currentSession = session;
+		}
+
+		public OPCUASession CreateUniqueSession(SessionRequest sessionDto)
 		{
 			//reconnect
 			if (_currentSession != null && _currentSession.Name == sessionDto.Name && _currentSession.EndpointUrl == sessionDto.EndpointUrl)
@@ -71,14 +89,16 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			{
 				_currentSession.EndpointUrl = sessionDto.EndpointUrl;
 				_currentSession.Name = sessionDto.Name;
-				// release the session to not block for high network timeouts
 
-				// Select the endpoint based on given URL and security preference.
+				var url = new Uri(_currentSession.EndpointUrl);
+				Ping pinger = new Ping();
+				PingReply reply = pinger.Send(url.Host);
+				Logger.Information($"PING {url.Host}: {reply.Status}");
 				selectedEndpoint = CoreClientUtils.SelectEndpoint(_applicationConfiguration, _currentSession.EndpointUrl, useSecurity: ApplicationConfigBuilder.UseSecurity);
 
 				configuredEndpoint = new ConfiguredEndpoint(null, selectedEndpoint, EndpointConfiguration.Create(_applicationConfiguration));
 
-				Logger.Information($"Create {(ApplicationConfigBuilder.UseSecurity ? "secured" : "unsecured")} session for endpoint URI: '{_currentSession.EndpointUrl}' name: '{sessionDto.Name}' with timeout of {_currentSession.ExpiryDuration} h.");
+				Logger.Information($"Create {(ApplicationConfigBuilder.UseSecurity ? "secured" : "unsecured")} session for endpoint URI: '{_currentSession.EndpointUrl}' name: '{_currentSession.Name}' with timeout of {_currentSession.ExpiryDuration} h.");
 
 				// Create an OPC UA session with the selected endpoint.
 				var session = global::Opc.Ua.Client.Session.Create(
@@ -108,7 +128,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 			catch (Exception e)
 			{
-				Logger.Error(e, $"Session creation to endpoint '{_currentSession.EndpointUrl}' failed {++UnsuccessfulConnectionCount} time(s). Please verify if server is up and configuration is correct.");
+				Logger.Error(e, $"Session creation to endpoint '{_currentSession.EndpointUrl}' failed {++UnsuccessfulConnectionCount} time(s). Please verify if server is up and configuration is correct.\n {e.Message} {e.InnerException?.Message}");
 
 				RemoveSession(_currentSession.SessionId);
 				return _currentSession;
@@ -152,19 +172,6 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 		}
 
-		public void TryGetSession(string sessionId, out OPCUASession session)
-		{
-			if (sessionId == null)
-			{
-				session = null;
-				return;
-			}
-			_sessions.TryGetValue(sessionId, out session);
-			if (session != null)
-				session.LastAccessed = DateTime.UtcNow;
-			_currentSession = session;
-		}
-
 		// Cleanup expired sessions based on inactivity
 		public void CleanupExpiredSessions(TimeSpan inactivityDuration)
 		{
@@ -175,29 +182,27 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 		}
 
-		public bool RemoveSession(string sessionId)
+		public void RemoveSession(string sessionId)
 		{
 			try
 			{
 				var result = _sessions.TryRemove(sessionId, out _);
 				_currentSession = new OPCUASession();
-				return result;
 			}
-			catch (Exception ex)
+			catch
 			{
-				return false;
+				//session is removed already
 			}
 		}
-
 
 		/// <summary>
 		/// Handler for the standard "keep alive" event sent by all OPC UA servers.
 		/// </summary>
 		private void StandardClient_KeepAlive(ISession session, KeepAliveEventArgs e)
 		{
-			if (e != null && session != null && session.ConfiguredEndpoint != null && _currentSession.Session != null)
+			try
 			{
-				try
+				if (e != null && session != null && _currentSession != null && session.ConfiguredEndpoint != null && _currentSession.Session != null)
 				{
 					if (!ServiceResult.IsGood(e.Status))
 					{
@@ -219,7 +224,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 								});
 								Logger.Warning($"Hit configured missed keep alive threshold of {OpcKeepAliveDisconnectThreshold}. Disconnecting the session to endpoint {session.ConfiguredEndpoint.EndpointUrl}.");
 								session.KeepAlive -= StandardClient_KeepAlive;
-								Task t = Task.Run(async () => await DisconnectAsync());
+								Task t = Task.Run(async () => await DisconnectCurrentAsync());
 							}
 						}
 					}
@@ -233,14 +238,14 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 						}
 					}
 				}
-				catch (Exception ex)
+				else
 				{
-					Logger.Error(ex, $"Error in keep alive handling for endpoint '{session.ConfiguredEndpoint.EndpointUrl}'. (message: '{ex.Message}'");
+					Logger.Warning("Keep alive arguments seems to be wrong.");
 				}
 			}
-			else
+			catch (Exception ex)
 			{
-				Logger.Warning("Keep alive arguments seems to be wrong.");
+				Logger.Error(ex, $"Error in keep alive handling for endpoint '{session.ConfiguredEndpoint.EndpointUrl}'. (message: '{ex.Message}'");
 			}
 		}
 
@@ -248,36 +253,45 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		/// Disconnects a session and removes all subscriptions on it and marks all nodes on those subscriptions
 		/// as unmonitored.
 		/// </summary>
-		public async Task DisconnectAsync()
+		public async Task DisconnectCurrentAsync()
 		{
 			try
 			{
-				try
-				{
-					Logger.Information($"Closing session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully."); _currentSession.Session.Close();
-					Logger.Information($"Session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
-				}
-				catch
-				{
-					// the session might be already invalidated. ignore
-				}
-			}
-			catch (Exception e)
-			{
-				Logger.Error(e, $"Error while closing session to endpoint '{_currentSession.EndpointUrl}'.");
-			}
+				if (_currentSession == null || _currentSession.State != SessionState.Connected)
+					return;
 
-			RemoveSession(_currentSession.SessionId);
-			MissedKeepAlives = 0;
+				Logger.Information($"Closing session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
+
+				_currentSession.Session.Close();
+				Logger.Information($"Session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
+
+				RemoveSession(_currentSession.SessionId);
+				MissedKeepAlives = 0;
+			}
+			catch (Exception ex)
+			{
+				Logger.Error($"Error on session '{_currentSession.EndpointUrl}' close. {ex.Message}");
+			}
 			await Task.CompletedTask;
 		}
 
-		public IEnumerable<Domain.Entities.SessionEntity> GetSessionList()
+		public async Task DisconnectAsync(OPCUASession session)
 		{
-			var sessions = _sessions.Values.ToList();
+			try
+			{
+				Logger.Information($"Closing session to endpoint URI '{session.EndpointUrl}' closed successfully.");
 
-			var result = mapper.Map<IEnumerable<Domain.Entities.SessionEntity>>(sessions);
-			return result;
+				session.Session.Close();
+				Logger.Information($"Session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
+
+				RemoveSession(session.SessionId);
+				MissedKeepAlives = 0;
+			}
+			catch (Exception ex)
+			{
+				Logger.Error($"Error on session '{session.EndpointUrl}' close. {ex.Message}");
+			}
+			await Task.CompletedTask;
 		}
 
 		private CancellationTokenSource _sessionCancelationTokenSource;

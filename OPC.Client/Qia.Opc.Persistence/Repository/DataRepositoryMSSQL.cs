@@ -19,63 +19,96 @@ namespace Qia.Opc.Persistence.Repository
 
 		public async Task<T> FindAsync(Expression<Func<T, bool>> filter, params Expression<Func<T, object>>[] includes)
 		{
-			using var _context = _contextFactory.CreateDbContext();
-
-			var query = _context.Set<T>().Where(filter);
-
-			if (includes != null)
+			try
 			{
-				foreach (var include in includes)
-				{
-					query = query.Include(include);
-				}
-			}
+				using var _context = _contextFactory.CreateDbContext();
 
-			return await query.FirstOrDefaultAsync();
+				var query = _context.Set<T>().Where(filter);
+
+				if (includes != null)
+				{
+					foreach (var include in includes)
+					{
+						query = query.Include(include);
+					}
+				}
+
+				return await query.FirstOrDefaultAsync();
+			}
+			catch (Exception ex)
+			{
+
+				LoggerManager.Logger.Error($"Cannot get the entity: {0}", ex);
+			}
+			return null;
 		}
 
 		public async Task<IEnumerable<T>> ListAllAsync(Expression<Func<T, bool>> filter = null)
 		{
-			using var _context = _contextFactory.CreateDbContext();
-
-			IQueryable<T> query = _context.Set<T>();
-
-			if (filter != null)
+			try
 			{
-				query = query.Where(filter);
-			}
+				using var _context = _contextFactory.CreateDbContext();
 
-			return await query.ToListAsync();
+				IQueryable<T> query = _context.Set<T>();
+
+				if (filter != null)
+				{
+					query = query.Where(filter);
+				}
+
+				return await query.ToListAsync();
+			}
+			catch (Exception ex)
+			{
+
+				LoggerManager.Logger.Error($"Cannot get the entity list: {0}", ex);
+			}
+			return new List<T>();
 		}
 
 		public async Task UpsertAsync(T entity, Expression<Func<T, bool>> filter)
 		{
-			if (entity == null) return;
-
-			using var context = _contextFactory.CreateDbContext();
-
-			var existingEntity = await context.Set<T>().FirstOrDefaultAsync(filter);
-
-			if (existingEntity != null)
+			try
 			{
-				MapPropertiesExcept(entity, ref existingEntity, "Id", "SessionEntityId");
-				///TODO: handle conqurency
-				context.Update(existingEntity);
-			}
-			else
-			{
-				await context.Set<T>().AddAsync(entity);
-			}
+				if (entity == null) return;
 
-			await context.SaveChangesAsync();
+				using var context = _contextFactory.CreateDbContext();
+
+				var existingEntity = await context.Set<T>().FirstOrDefaultAsync(filter);
+
+				if (existingEntity != null)
+				{
+					MapPropertiesExcept(entity, ref existingEntity, "Id", "SessionEntityId");
+					///TODO: handle conqurency
+					context.Update(existingEntity);
+				}
+				else
+				{
+					await context.Set<T>().AddAsync(entity);
+				}
+
+				await context.SaveChangesAsync();
+			}
+			catch (Exception ex)
+			{
+
+				LoggerManager.Logger.Error($"Cannot update the entity: {0}", ex);
+			}
 		}
 
 		public async Task DeleteAsync(T entity)
 		{
-			if (entity == null) return;
-			using var _context = _contextFactory.CreateDbContext();
-			_context.Set<T>().Remove(entity);
-			await _context.SaveChangesAsync();
+			try
+			{
+				if (entity == null) return;
+				using var _context = _contextFactory.CreateDbContext();
+				_context.Set<T>().Remove(entity);
+				await _context.SaveChangesAsync();
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error($"Cannot delete the entity: {0}", ex);
+			}
 		}
 
 		public async Task AddAsync(T entity)
@@ -92,7 +125,7 @@ namespace Qia.Opc.Persistence.Repository
 			}
 			catch (Exception ex)
 			{
-				LoggerManager.Logger.Error(ex.Message, ex);
+				LoggerManager.Logger.Error($"Cannot add the entity {0}", ex);
 			}
 		}
 

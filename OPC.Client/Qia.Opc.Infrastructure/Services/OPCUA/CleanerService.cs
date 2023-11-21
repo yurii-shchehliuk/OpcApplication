@@ -1,6 +1,6 @@
 ﻿using Qia.Opc.OPCUA.Connector.Managers;
 
-namespace Qia.Opc.Infrastrucutre.Services.OPCUA
+namespace QIA.Opc.Infrastructure.Services.OPCUA
 {
 	public class CleanerService
 	{

@@ -2,9 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, Subscription, tap } from 'rxjs';
 import { environment } from 'src/environments/environment.development';
-import { SessionEntity } from '../models/sessionModels';
+import { SessionEntity, SessionState } from '../models/sessionModels';
 import { NodeService } from './node.service';
 import { NotificationService } from '../shared/notification.service';
+import { SubscriptionService } from './subscription.service';
 
 @Injectable({
   providedIn: 'root',
@@ -13,25 +14,24 @@ export class SessionService {
   baseUrl = environment.server + 'session/';
   private SESSION_KEY = 'sessionId_';
 
-  private selectedSession = new BehaviorSubject<string>('');
   private sessionListSubject = new BehaviorSubject<SessionEntity[]>([]);
+  private selectedSession = new BehaviorSubject<SessionEntity>(
+    (<Partial<SessionEntity>>{}) as SessionEntity
+  );
 
   constructor(
     private http: HttpClient,
     private nodeService: NodeService,
-    private notifyService: NotificationService
+    private notifyService: NotificationService,
+    private subscriptionService: SubscriptionService
   ) {}
-
-  private set setSession(name: string) {
-    this.selectedSession.next(name);
-  }
-
-  get getSession(): Observable<string> {
-    return this.selectedSession.asObservable();
-  }
 
   get sessionList$(): Observable<SessionEntity[]> {
     return this.sessionListSubject.asObservable();
+  }
+
+  get selectedSession$(): Observable<SessionEntity> {
+    return this.selectedSession.asObservable();
   }
 
   createEndpoint(session: SessionEntity) {
@@ -53,17 +53,27 @@ export class SessionService {
       .post<SessionEntity>(this.baseUrl + 'connect', session)
       .subscribe({
         next: (response: SessionEntity) => {
-          this.selectedSession.next(response.name);
+          this.selectedSession.next(response);
+          sessionStorage.clear();
           sessionStorage.setItem(
             this.SESSION_KEY + response.name,
             response.sessionId
           );
-          this.setSession = session.name;
-          this.nodeService.getConfigNodes();
+
+          setTimeout(() => {
+            this.subscriptionService.getActiveSubscriptions();
+          }, 500);
+
           this.notifyService.showSuccess('Connected successfully', '');
         },
         error: (err) => {
+          this.nodeService.getConfigNodes();
+          session.state = SessionState.disconnected;
+          this.selectedSession.next(session);
           console.log(err);
+        },
+        complete: () => {
+          this.nodeService.getConfigNodes();
         },
       });
   }
@@ -82,20 +92,37 @@ export class SessionService {
       });
   }
 
+  disconnect(session: SessionEntity) {
+    return this.http
+      .post<SessionEntity>(this.baseUrl + 'disconnect', session)
+      .subscribe();
+  }
+
   deleteSession(sessionId: string): Subscription {
     return this.http.delete(this.baseUrl + sessionId).subscribe({
       next: () => {
-        this.setSession = '';
+        this.selectedSession.next(
+          (<Partial<SessionEntity>>{}) as SessionEntity
+        );
         sessionStorage.removeItem(this.SESSION_KEY);
       },
     });
   }
 
-  getSessionList() {
+  getActiveSessions() {
     this.http
-      .get<SessionEntity[]>(this.baseUrl + 'list')
+      .get<SessionEntity[]>(this.baseUrl + 'activeSessions')
       .subscribe((data: SessionEntity[]) => {
         this.sessionListSubject.next(data);
+      });
+  }
+
+  getSessionList() {
+    this.http
+      .get<SessionEntity[]>(this.baseUrl + 'savedSessions')
+      .subscribe((data: SessionEntity[]) => {
+        this.sessionListSubject.next(data);
+        this.getActiveSessions();
       });
   }
 }

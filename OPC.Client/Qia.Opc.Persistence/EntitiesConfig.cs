@@ -10,6 +10,9 @@ namespace Qia.Opc.Persistence
 		public void Configure(EntityTypeBuilder<SessionEntity> builder)
 		{
 			builder.HasKey(c => c.Id);
+			builder.Ignore(c => c.State);
+			builder.Ignore(c => c.SessionNodeId);
+			builder.Ignore(c => c.SessionId);
 		}
 	}
 	
@@ -32,6 +35,15 @@ namespace Qia.Opc.Persistence
 			builder.ToTable(StaticSettings.GetTargetTbl);
 			builder.HasKey(e => e.Id);
 			builder.HasIndex(e => e.NodeId);
+		}
+	}
+
+	public class TreeContainerEntity : IEntityTypeConfiguration<TreeContainer>
+	{
+		public void Configure(EntityTypeBuilder<TreeContainer> builder)
+		{
+			builder.HasKey(e => e.Id);
+			builder.Property(e => e.Data).HasColumnType<string>("VARCHAR(MAX)");
 		}
 	}
 }

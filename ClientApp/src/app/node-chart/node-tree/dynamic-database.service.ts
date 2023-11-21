@@ -9,7 +9,6 @@ import { BehaviorSubject, Observable, map, merge } from 'rxjs';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { TreeService } from 'src/app/services/tree.service';
 import { NotificationService } from 'src/app/shared/notification.service';
-import { SessionService } from 'src/app/services/session.service';
 
 /** Flat node with expandable and level information */
 export class DynamicFlatNode {
@@ -28,7 +27,6 @@ export class DynamicDatabase {
   constructor(
     private treeService: TreeService,
     private notifyService: NotificationService,
-    private session: SessionService
   ) {}
 
   rootLevelNodes: TreeNode[] = [
@@ -147,8 +145,9 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
         node.isLoading = false;
       },
       error: (error) => {
-        console.error('Error fetching children:', error); // Debug Step 2
+        console.error('Error fetching children:', error);
         node.isLoading = false;
+        this.dataChange.next(this._database.initialData());
       },
       complete: () => {
         node.isLoading = false;

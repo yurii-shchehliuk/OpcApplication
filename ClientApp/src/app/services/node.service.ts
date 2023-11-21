@@ -1,21 +1,39 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, Subscription } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs';
 import { environment } from 'src/environments/environment.development';
-import { NodeReference } from '../models/nodeModels';
+import { NodeReference, NodeValue } from '../models/nodeModels';
 import { NotificationService } from '../shared/notification.service';
+import { SessionAccessorService } from '../shared/session-accessor.service';
+import { CommunicationService } from './communication.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class NodeService {
   private configNodesSubj = new BehaviorSubject<NodeReference[]>([]);
+  private nodeToRemoveSubj = new Subject<string>();
 
   baseUrl = environment.server + 'node/';
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private communicationService: CommunicationService
+  ) {}
 
   get configNodes$() {
     return this.configNodesSubj.asObservable();
+  }
+
+  get getNodeValueObservable$(): Observable<NodeValue> {
+    return this.communicationService.getNodeObservable;
+  }
+
+  get nodeToRemove$(): Observable<string> {
+    return this.nodeToRemoveSubj.asObservable();
+  }
+
+  set nodeToRemove$(node: string) {
+    this.nodeToRemoveSubj.next(node);
   }
 
   addConfigNode(node: NodeReference) {
@@ -31,10 +49,13 @@ export class NodeService {
   }
 
   getConfigNodes() {
-    this.http
-      .get<NodeReference[]>(this.baseUrl + 'config/list')
-      .subscribe((res) => {
+    this.http.get<NodeReference[]>(this.baseUrl + 'config/list').subscribe({
+      next: (res) => {
         this.configNodesSubj.next(res);
-      });
+      },
+      error: (err) => {
+        this.configNodesSubj.next([]);
+      },
+    });
   }
 }

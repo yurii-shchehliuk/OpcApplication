@@ -1,0 +1,24 @@
+.newNode {
+  display: flex;
+}
+
+.mat-mdc-unelevated-button {
+  background: transparent;
+}
+
+table {
+  width: 100%;
+
+  .node-header {
+    // transform: translateX(-5em);
+    font-weight: 500;
+  }
+
+  .subscription-header {
+    border-top: 1px solid;
+  }
+  
+  .node {
+    // transform: translateX(-5em);
+  }
+}

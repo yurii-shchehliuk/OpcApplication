@@ -1,5 +1,6 @@
 <section>
     <h2>Hub source</h2>
+
     <div #sessionList class="channelList">
         <div routerLink="." *ngFor="let session of sessionArr" class="channel" (click)="selectSession(session)">
             <p class="channel-text">{{session.name}}</p>
@@ -10,14 +11,4 @@
     <div class="input-group mb-3 newChannel">
         <button button mat-raised-button color="primary" (click)="openDialog($event)">Add</button>
     </div>
-
-    <!-- <mat-expansion-panel (opened)="panelOpenState = true" (closed)="panelOpenState = false">
-        <mat-expansion-panel-header>
-            <mat-panel-title>
-                Subscriptions
-            </mat-panel-title>
-        </mat-expansion-panel-header>
-        <p>I'm visible because I am open</p>
-       
-    </mat-expansion-panel> -->
 </section>

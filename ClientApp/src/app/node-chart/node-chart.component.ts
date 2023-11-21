@@ -2,11 +2,13 @@ import { Component } from '@angular/core';
 import { Chart, ChartDataset, ChartConfiguration } from 'chart.js';
 import { Subscription } from 'rxjs';
 import { NodeValue, NodeReference } from '../models/nodeModels';
-import { CommunicationService } from '../services/communication.service';
 import { NodeService } from '../services/node.service';
-import { SessionService } from '../services/session.service';
 import { SubscriptionService } from '../services/subscription.service';
 import { MatDialog } from '@angular/material/dialog';
+import { SessionEntity } from '../models/sessionModels';
+import { SessionState } from 'src/app/models/sessionModels';
+import { SessionAccessorService } from '../shared/session-accessor.service';
+import { SubscriptionParametersDialogComponent } from '../subscription/subscription-parameters-dialog/subscription-parameters-dialog.component';
 
 @Component({
   selector: 'app-node-chart',
@@ -18,52 +20,45 @@ export class NodeChartComponent {
   nodeArray: NodeReference[] = [];
   datasets: ChartDataset[] = [];
   labels: string[] = [];
-  sessionSource = '';
-
+  sessionSource: SessionEntity = (<Partial<SessionEntity>>{}) as SessionEntity;
+  sessionState = SessionState;
   subscriptions: Subscription[] = [];
-  newNode: NodeReference = (<Partial<NodeReference>>{}) as NodeReference;
 
   constructor(
-    private sessionService: SessionService,
-    private subscriptionService: SubscriptionService,
-    private nodeService: NodeService,
-    private communicationService: CommunicationService,
-    public dialog: MatDialog
+    private sessionAccessor: SessionAccessorService,
+    private nodeService: NodeService
   ) {}
 
   ngOnInit() {
     this.createChart();
-    // listen from selected session
-    // signalr connection is created in session-monitor
-    this.sessionService.getSession.subscribe((data: string) => {
+    // when session changed - reset everything
+    this.sessionAccessor.currentSession$.subscribe((data: SessionEntity) => {
       this.sessionSource = data;
 
       this.nodeArray = [];
       this.datasets = [];
       this.labels = [];
 
-      this.nodeService.configNodes$.subscribe(
-        (nodeRefList: NodeReference[]) => {
-          this.nodeArray = [];
-
-          nodeRefList.map((NodeValue: NodeReference) => {
-            this.nodeArray.push(NodeValue);
-          });
-        }
-      );
-
       this.chart.destroy();
       this.createChart();
     });
 
     // Fill up chart with data if not present ignore
-    this.communicationService.getNodeObservable.subscribe(
+    this.nodeService.getNodeValueObservable$.subscribe(
       (NodeValue: NodeValue) => {
         this.pushEventToChartData(NodeValue);
       }
     );
 
-    //subscriptions
+    this.nodeService.nodeToRemove$.subscribe({
+      next: (nodeId: string) => {
+        let datasetIndex = this.datasets.findIndex(
+          (c) => c.label === nodeId
+        );
+        this.datasets.splice(datasetIndex, 1);
+        this.refreshChart();
+      },
+    });
   }
 
   ngAfterViewInit(): void {
@@ -77,70 +72,13 @@ export class NodeChartComponent {
     this.chart.update();
   }
 
-  subscribeToNode(event: any, node: NodeReference) {
-    if (node.subscriptionId) {
-      this.subscriptionService
-        .deleteSubs(node.subscriptionId, node.nodeId)
-        .subscribe(() => {
-          let oldNodeRef = this.nodeArray.findIndex(
-            (c) => c.nodeId === node.nodeId
-          );
-          this.nodeArray[oldNodeRef].subscriptionId = null;
-        });
-    } else {
-      this.subscriptionService.createSubs(node).subscribe((res) => {
-        let oldNodeRef = this.nodeArray.findIndex(
-          (c) => c.nodeId === node.nodeId
-        );
-        this.nodeArray[oldNodeRef] = res;
-      });
-    }
-  }
-
-  addConfigNode() {
-    this.nodeService.addConfigNode(this.newNode);
-    this.newNode = (<Partial<NodeReference>>{}) as NodeReference;
-  }
-
-  removeNode(node: NodeReference) {
-    this.subscriptionService
-      .deleteSubs(node.subscriptionId!, node.nodeId)
-      .subscribe();
-    this.nodeService.deleteConfigNode(node.nodeId);
-    this.refreshChart();
-  }
-
-  hideNode(event: any, nodeId: string) {
-    // this.sessionService.nodeMonitor(this.newNode, this.sessionSource, 'unmonitor');
-
+  hideNode(nodeId: string) {
     let dataset = this.datasets.find((c) => c.label === nodeId);
     if (!dataset) return;
 
     //hide
     dataset.hidden = !dataset.hidden;
     this.chart.update();
-
-    //add background
-    event.target.parentElement.parentElement.classList.toggle(
-      'background-hidden'
-    );
-    //chnage icon
-    event.target.classList.toggle('bi-eye');
-    event.target.classList.toggle('bi-eye-slash');
-
-    event.stopPropagation();
-    event.preventDefault();
-  }
-
-  getSubscriptionIcon(item: NodeReference): string {
-    if (item.subscriptionId) {
-      return 'bi-send-dash';
-    }
-    return 'bi-send-plus';
-  }
-
-  populateNode(node: NodeReference) {
-    this.newNode = JSON.parse(JSON.stringify(node));
   }
 
   protected getNodeValue(nodeId: string) {

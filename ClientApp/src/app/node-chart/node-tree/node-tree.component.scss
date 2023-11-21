@@ -27,12 +27,23 @@
 
 .container {
   padding: 2em;
+
+  .tree-header {
+    display: flex;
+    justify-content: space-between;
+    h4 {
+      font-weight: 500;
+    }
+  }
+
   .reloadTree {
     float: right;
   }
+
   mat-tree {
     background: #fafafa;
   }
+
   .mat-tree-node {
     display: block !important;
 
@@ -40,23 +51,24 @@
       vertical-align: super;
     }
 
-    i {
-      visibility: hidden;
-      display: block;
+    .action {
+      display: none;
       float: right;
-      width: 2em;
-      height: 2em;
-      padding: 0 0.45em;
+      margin: 0;
 
       &::before {
         vertical-align: -webkit-baseline-middle;
+        color: rgb(215, 215, 215);
       }
     }
 
     &:hover {
       background-color: whitesmoke;
-      i {
-        visibility: visible;
+      .action {
+        display: block;
+        &::before {
+          color: black;
+        }
 
         &:hover {
           border: 1px solid transparent;

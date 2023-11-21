@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Opc.Ua;
 using Qia.Opc.Domain.Entities;
-using Qia.Opc.Infrastrucutre.Services.OPCUA;
+using QIA.Opc.Infrastructure.Services.OPCUA;
 
 namespace QIA.Opc.API.Controllers
 {

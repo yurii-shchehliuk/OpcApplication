@@ -20,14 +20,14 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<EmbeddedResource Include="appsettings.json">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</EmbeddedResource>
+		<ProjectReference Include="..\Qia.Opc.Infrastructure\QIA.Opc.Infrastructure.csproj" />
+		<ProjectReference Include="..\Qia.Opc.Persistence\QIA.Opc.Persistence.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\Qia.Opc.Infrastructure\QIA.Opc.Infrastructure.csproj" />
-		<ProjectReference Include="..\Qia.Opc.Persistence\QIA.Opc.Persistence.csproj" />
+	  <Content Update="appsettings.json">
+	    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
 	</ItemGroup>
 
 </Project>

@@ -5,7 +5,7 @@ namespace Qia.Opc.OPCUA.Connector.Entities
 {
 	public class OPCUASession
 	{
-		public string Name { get; set; }
+		public string Name { get; set; } = "";
 		public string SessionId { get; set; }
 		public string EndpointUrl { get; set; }
 		public Session Session { get; set; }
@@ -13,7 +13,5 @@ namespace Qia.Opc.OPCUA.Connector.Entities
 		public DateTime CreatedAt { get; set; }
 		public TimeSpan ExpiryDuration { get; set; } = TimeSpan.FromHours(1);
 		public DateTime LastAccessed { get; set; }
-
 	}
-
 }

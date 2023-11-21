@@ -3,10 +3,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Qia.Opc.Domain.Core;
 using Qia.Opc.Infrastructure.Application;
 using System.Net;
 
-namespace Qia.Opc.Domain.Core
+namespace QIA.Opc.API.Core
 {
 	public class ExceptionMiddleware
 	{
@@ -39,22 +40,22 @@ namespace Qia.Opc.Domain.Core
 					Message = new string[]
 					{
 						ex.Message,
-						ex.StackTrace,
-						ex.InnerException?.Message ?? ""
+						ex.InnerException?.Message ?? "",
+						ex.StackTrace ?? "",
 					}
 				};
 				LoggerManager.Logger.Fatal(ex.Message + "{0}" + "{1}", ex.StackTrace, ex);
 
-				await mediator.Publish(new EventMediatorCommand(new Common.EventData()
-				{
-					LogCategory = Entities.Enums.LogCategory.Error,
-					Message = ex.Message,
-					Title = "Exception occured"
-				}));
-
 				var json = JsonConvert.SerializeObject(response);
 
 				await context.Response.WriteAsync(json);
+
+				await mediator.Publish(new EventMediatorCommand(new Qia.Opc.Domain.Common.EventData()
+				{
+					LogCategory = Qia.Opc.Domain.Entities.Enums.LogCategory.Error,
+					Message = ex.Message,
+					Title = "Exception occured"
+				}));
 			}
 		}
 	}

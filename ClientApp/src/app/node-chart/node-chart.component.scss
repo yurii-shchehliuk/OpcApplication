@@ -22,43 +22,74 @@
     .newNode {
       padding-left: 1.5em;
     }
-    .node {
-      // height: 2em;
-
-      &-action {
-        // height: 2em;
-        display: block;
-        visibility: hidden;
-        padding-left: 1em;
-
-        i {
-          display: block;
-          float: right;
-          width: 2.2em;
-          height: 2.2em;
-          padding: inherit;
-          margin-top: 0.5em;
-
-          &::before {
-            vertical-align: -webkit-baseline-middle;
-          }
-          &:hover {
-            cursor: pointer;
-          }
+    table {
+      tr:nth-child(1) {
+        h4 {
+          padding-left: 1em;
+          font-weight: 500;
         }
       }
-
-      &:hover {
-        background-color: whitesmoke;
-        .node-action {
-          visibility: visible;
-
-          i:hover {
-            border: 1px solid transparent;
-            border-radius: 50%;
-            cursor: pointer;
-            background: rgb(235, 235, 235);
+      tr {
+        &.table-header {
+          th {
+            font-weight: 600;
           }
+        }
+        th:nth-child(1) {
+          padding-left: 1em;
+        }
+
+        td:nth-child(1) {
+          padding-left: 1em;
+        }
+
+        &.node {
+          height: 2em;
+
+          .node-action {
+            // height: 6em;
+            display: block;
+            padding-left: 1em;
+
+            i {
+              display: block;
+              float: right;
+              width: 2.2em;
+              height: 2.2em;
+              padding: inherit;
+              margin-top: 0.3em;
+              &::before {
+                vertical-align: -webkit-baseline-middle;
+                padding-top: 0.2em;
+                color: gray;
+              }
+              &:hover {
+                cursor: pointer;
+              }
+            }
+          }
+
+          &:hover {
+            background-color: whitesmoke;
+            .node-action {
+              i {
+                &::before {
+                  color: black;
+                }
+
+                &:hover {
+                  border: 1px solid transparent;
+                  border-radius: 50%;
+                  cursor: pointer;
+                  background: rgb(235, 235, 235);
+                }
+              }
+            }
+          }
+        }
+        &.highlighted {
+          background-color: #f4f4f4;
+          border-left: 2px solid #c9c9c9;
         }
       }
     }

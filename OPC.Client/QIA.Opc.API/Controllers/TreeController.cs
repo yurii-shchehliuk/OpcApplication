@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Azure;
+using Microsoft.AspNetCore.Mvc;
 using Qia.Opc.Domain.Entities;
-using Qia.Opc.Infrastrucutre.Services.OPCUA;
+using QIA.Opc.Infrastructure.Services.OPCUA;
+using System.Text;
 
 namespace QIA.Opc.API.Controllers
 {
@@ -28,17 +30,13 @@ namespace QIA.Opc.API.Controllers
 		}
 
 		[HttpGet("full")]
-		public IActionResult BrowseTree()
+		public async Task<IActionResult> BrowseTree()
 		{
-			var graph = treeService.GetFullGraph();
-			return Ok(graph);
-		}
+			var treeContainer = await treeService.GetFullGraphAsync();
+			var byteArray = Encoding.UTF8.GetBytes(treeContainer.Data);
+			var stream = new MemoryStream(byteArray);
 
-		[HttpPost("active")]
-		public ActionResult<TreeNode> FindNodesRecursively([FromBody] HashSet<NodeReferenceEntity> nodesToFind)
-		{
-			var result = treeService.FindNodesRecursively(nodesToFind);
-			return Ok(result);
+			return File(stream, "text/plain", treeContainer.SourceName + ".txt");
 		}
 	}
 }

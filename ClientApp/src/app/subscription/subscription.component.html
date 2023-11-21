@@ -1,0 +1,79 @@
+<section class="container">
+    <div class="container-details">
+        <div class="pl-1">
+            <h4>Add node to subscription</h4>
+        </div>
+        <div class="newNode">
+            <mat-form-field>
+                <mat-label>Node Id</mat-label>
+                <input matInput [(ngModel)]="newNode.nodeId" required>
+            </mat-form-field>
+            <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Example icon-button with a menu">
+                <mat-icon>more_vert</mat-icon>
+            </button>
+        </div>
+    </div>
+
+    <mat-menu #menu="matMenu">
+        <button mat-menu-item (click)="addNewSubscription()">
+            <i class="bi bi-plus"></i>
+            <span>New subscription</span>
+        </button>
+        <ng-container *ngFor="let subscription of subscriptionsArr">
+            <button mat-menu-item
+                (click)="addToSubscription(subscription.displayName)">{{subscription.displayName}}</button>
+        </ng-container>
+    </mat-menu>
+
+    <table>
+        <tr class="table-header">
+            <th>Subscription Name</th>
+            <th>Publish Interval</th>
+            <th>Items Count</th>
+            <th>Sequence Number</th>
+            <th></th>
+        </tr>
+        <ng-container *ngFor="let subscription of subscriptionsArr">
+            <tr class="subscription-header">
+                <td>{{subscription.displayName}}</td>
+                <td>{{subscription.publishInterval}}</td>
+                <td>{{subscription.itemsCount}}</td>
+                <td>{{subscription.sequenceNumber}}</td>
+                <td>
+                    <button mat-flat-button (click)="modifySubscription(subscription.id)" class="d-inline">
+                        <i class="h4 bi bi-pencil-square"></i>
+                    </button>
+
+                    <button mat-flat-button (click)="setPublishingMode(subscription, $event)" class="d-inline">
+                        <i class="h4 bi"
+                            [ngClass]="{'bi-send-dash': subscription.publishingEnabled, 'bi-send-plus': !subscription.publishingEnabled}"></i>
+                    </button>
+
+                    <button mat-flat-button (click)="removeSubscription(subscription, $event)" class="d-inline">
+                        <mat-icon>delete</mat-icon>
+                    </button>
+                </td>
+            </tr>
+            <tr class="node-header">
+                <td>NodeId</td>
+                <td>Display Name</td>
+                <td>Value</td>
+                <td>Sampling Interval</td>
+                <td></td>
+            </tr>
+            <tr *ngFor="let monitoredItem of subscription.monitoringItems" [class]="'node'">
+                <td>{{monitoredItem.startNodeId}}</td>
+                <td>{{monitoredItem.displayName}}</td>
+                <td class="node-value">{{monitoredItem.value}}</td>
+                <td>{{monitoredItem.samplingInterval}}</td>
+                <td class="node-action">
+                    <button mat-flat-button
+                        (click)="deleteMonitoringItem(subscription, monitoredItem.startNodeId, $event)">
+                        <mat-icon>delete</mat-icon>
+                    </button>
+                    <!-- <mat-icon>edit</mat-icon> -->
+                </td>
+            </tr>
+        </ng-container>
+    </table>
+</section>

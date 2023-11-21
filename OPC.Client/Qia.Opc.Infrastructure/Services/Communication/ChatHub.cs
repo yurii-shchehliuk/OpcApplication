@@ -1,13 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http.Connections.Features;
 using Microsoft.AspNetCore.SignalR;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
+using Qia.Opc.Domain.Core;
 
-namespace Qia.Opc.Infrastrucutre.Services.Communication
+namespace QIA.Opc.Infrastructure.Services.Communication
 {
 	public class ChatHub : Hub
 	{
@@ -16,7 +11,7 @@ namespace Qia.Opc.Infrastrucutre.Services.Communication
 			var httpContext = Context.Features.Get<IHttpContextFeature>();
 			var connectionId = Context.ConnectionId;
 
-			Console.WriteLine($"# Connected {connectionId} from: {httpContext?.HttpContext?.Connection?.RemoteIpAddress?.ToString()}");
+			LoggerManager.Logger.Information($"# Connected {connectionId} from: {httpContext?.HttpContext?.Connection?.RemoteIpAddress?.ToString()}");
 
 			return base.OnConnectedAsync();
 		}
@@ -26,7 +21,7 @@ namespace Qia.Opc.Infrastrucutre.Services.Communication
 			var httpContext = Context.Features.Get<IHttpContextFeature>();
 			var connectionId = Context.ConnectionId;
 
-			Console.WriteLine($"# Disconnected {connectionId} from: {httpContext?.HttpContext?.Connection?.RemoteIpAddress?.ToString()}"); 
+			LoggerManager.Logger.Information($"# Disconnected {connectionId} from: {httpContext?.HttpContext?.Connection?.RemoteIpAddress?.ToString()}");
 			return base.OnDisconnectedAsync(exception);
 		}
 
@@ -40,12 +35,13 @@ namespace Qia.Opc.Infrastrucutre.Services.Communication
 		public async Task JoinGroup(string groupName)
 		{
 			await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-			Console.WriteLine($"{Context.ConnectionId} joined {groupName}");
+			LoggerManager.Logger.Information($"{Context.ConnectionId} joined {groupName}");
 		}
 
 		public async Task LeaveGroup(string groupName)
 		{
 			await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+			LoggerManager.Logger.Information($"{Context.ConnectionId} leaved {groupName}");
 		}
 		#endregion
 	}

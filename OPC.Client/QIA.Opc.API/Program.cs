@@ -1,4 +1,5 @@
 using Azure.Storage.Blobs;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -6,15 +7,14 @@ using Opc.Ua;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
 using Qia.Opc.Infrastructure.Application;
-using Qia.Opc.Infrastrucutre.Services.Communication;
-using Qia.Opc.Infrastrucutre.Services.OPCUA;
-using Qia.Opc.Infrastrucutre.ServicesHosted;
 using Qia.Opc.OPCUA.Connector;
 using Qia.Opc.OPCUA.Connector.Managers;
-using Qia.Opc.OPCUA.Connector.Services;
 using Qia.Opc.Persistence;
 using Qia.Opc.Persistence.Repository;
 using QIA.Opc.API.Core;
+using QIA.Opc.Infrastructure.Services.Communication;
+using QIA.Opc.Infrastructure.Services.OPCUA;
+using QIA.Opc.Infrastructure.ServicesHosted;
 using System.Text.Json;
 
 namespace QIA.Opc.API
@@ -41,9 +41,7 @@ namespace QIA.Opc.API
 			// app init
 			builder.Services.AddSingleton<ApplicationConfiguration>(sp =>
 			{
-				KeyVaultService keyVaultService = sp.GetRequiredService<KeyVaultService>();
-
-				var configBuilder = new ApplicationConfigBuilder(keyVaultService);
+				var configBuilder = new ApplicationConfigBuilder();
 				configBuilder.Init().Wait();
 
 				return configBuilder.ApplicationConfiguration;
@@ -55,7 +53,6 @@ namespace QIA.Opc.API
 			builder.Services.AddScoped<MonitoredItemManager>();
 			builder.Services.AddScoped<TreeManager>();
 			builder.Services.AddTransient<NodeManager>();
-			builder.Services.AddSingleton<KeyVaultService>();
 
 			// infrastructure
 			builder.Services.AddTransient<CleanerService>();
@@ -100,23 +97,15 @@ namespace QIA.Opc.API
 			// cors
 			builder.Services.AddCors(o =>
 			{
-				o.AddPolicy(webClient, c => c.AllowAnyHeader().AllowAnyMethod().AllowCredentials().WithOrigins("http://localhost:4200", "127.0.0.1", "localhost", "https://dev-qia-opc-web-weu-app.azurewebsites.net"));
+				o.AddPolicy(webClient, c => c.AllowAnyHeader().AllowAnyMethod().AllowCredentials().WithOrigins("http://localhost:4200", "http://localhost:8086", "https://dev-qia-opc-web-weu-app.azurewebsites.net"));
 				o.AddPolicy(anyOrigin, c => c.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
 			});
-
 
 			var app = builder.Build();
 
 			// app run
 			app.Services.GetRequiredService<ApplicationConfiguration>();
 			await InitDbAsync(app.Services.CreateScope());
-			LoggerManager.Logger.Information("Application started");
-
-			// Configure the HTTP request pipeline.
-			if (!app.Environment.IsDevelopment())
-			{
-				// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-			}
 
 			app.UseHttpsRedirection();
 			app.UseHsts();
@@ -145,6 +134,8 @@ namespace QIA.Opc.API
 						pattern: "{controller}/{action=Index}/{id?}");
 			});
 
+			LoggerManager.Logger.Information($"Application started: {builder.Configuration[$"profiles:{app.Environment.EnvironmentName}:applicationUrl"]}");
+
 			app.Run();
 		}
 
@@ -153,12 +144,11 @@ namespace QIA.Opc.API
 			using var context = scope.ServiceProvider.GetRequiredService<OpcDbContext>();
 			try
 			{
-				var canConnect = await context.Database.CanConnectAsync();
-				LoggerManager.Logger.Information($"Db connection {(canConnect ? "successfull" : "failed")}");
-
 				var created = await context.Database.EnsureCreatedAsync();
 				LoggerManager.Logger.Information($"Db {(created ? "is created" : "already exists")}");
 
+				var canConnect = await context.Database.CanConnectAsync();
+				LoggerManager.Logger.Information($"Db connection {(canConnect ? "successfull" : "failed")}");
 			}
 			catch (Exception ex)
 			{

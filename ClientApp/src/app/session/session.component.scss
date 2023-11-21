@@ -21,8 +21,6 @@ section {
       }
 
       i {
-        display: none;
-
         float: right;
         width: 2.5em;
         height: 2.5em;
@@ -32,6 +30,7 @@ section {
           vertical-align: -webkit-baseline-middle;
           margin-left: 0.25em;
           margin-top: 0.3em;
+          color: gray;
         }
 
         border: 1px solid transparent;
@@ -49,6 +48,9 @@ section {
       &:hover {
         background-color: #f5f5f5;
         i {
+          &::before {
+            color: black;
+          }
           display: block;
         }
       }
@@ -67,5 +69,10 @@ section {
         cursor: pointer;
       }
     }
+  }
+
+  .expansion-panel {
+    bottom: 0;
+    position: absolute;
   }
 }

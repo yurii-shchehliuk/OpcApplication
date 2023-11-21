@@ -1,44 +1,39 @@
-﻿using Qia.Opc.Domain.Entities;
+﻿using Newtonsoft.Json;
+using Qia.Opc.Domain.Entities;
 using Qia.Opc.OPCUA.Connector.Managers;
 using Qia.Opc.Persistence.Repository;
 
-namespace Qia.Opc.Infrastrucutre.Services.OPCUA
+namespace QIA.Opc.Infrastructure.Services.OPCUA
 {
 	public class TreeService
 	{
 		private readonly TreeManager treeManager;
-		private readonly IDataRepository<NodeReferenceEntity> nodeReferencesRepo;
-		private readonly SubscriptionService subscriptionService;
+		private readonly IDataRepository<TreeContainer> treeRepo;
+		private readonly SessionManager sessionManager;
 
-		public TreeService(TreeManager treeManager, IDataRepository<NodeReferenceEntity> nodeReferences, SubscriptionService subscriptionService)
+		public TreeService(TreeManager treeManager,
+					 IDataRepository<TreeContainer> treeRepo,
+					 SessionManager sessionManager)
 		{
 			this.treeManager = treeManager;
-			this.nodeReferencesRepo = nodeReferences;
-			this.subscriptionService = subscriptionService;
-			this.treeManager.NodeFound += TreeManager_NodeWasFound;
+			this.treeRepo = treeRepo;
+			this.sessionManager = sessionManager;
 		}
 
-		private async Task TreeManager_NodeWasFound(object sender, NodeReferenceEntity nodeRef)
+		public async Task<TreeContainer> GetFullGraphAsync()
 		{
-			await subscriptionService.SubscribeAsync(nodeRef);
-			await nodeReferencesRepo.AddAsync(nodeRef);
-		}
+			var treeData = await treeManager.BrowseTreeAsync();
+			var textContent = JsonConvert.SerializeObject(treeData);
+			TreeContainer treeContainer = new TreeContainer()
+			{
+				Data = textContent,
+				SourceName = sessionManager.CurrentSession.Name,
+				StoreTime = DateTime.UtcNow
+			};
+			await treeRepo.AddAsync(treeContainer);
 
-		public TreeNode GetFullGraph()
-		{
-			return treeManager.BrowseTree();
-		}
+			return treeContainer;
 
-		/// <summary>
-		/// Adds empty node to values table.
-		/// On found event or on getting from DB subscribe.
-		/// </summary>
-		/// <param name="configNodes"></param>
-		/// <param name="groupName"></param>
-		/// <returns></returns>
-		public TreeNode FindNodesRecursively(HashSet<NodeReferenceEntity> configNodes)
-		{
-			return treeManager.FindNodesRecursively(configNodes);
 		}
 
 		public TreeNode BrowseChild(TreeNode node)

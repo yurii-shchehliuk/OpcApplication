@@ -2,8 +2,6 @@
 using Microsoft.Extensions.Hosting;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Infrastructure.Application;
-using Qia.Opc.Infrastrucutre.Services.Communication;
-using Qia.Opc.Infrastrucutre.Services.OPCUA;
 using Qia.Opc.OPCUA.Connector.Managers;
 using System;
 using System.Collections.Generic;
@@ -11,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Qia.Opc.Infrastrucutre.ServicesHosted
+namespace QIA.Opc.Infrastructure.ServicesHosted
 {
 	/// <summary>
 	/// OPCUA events handler

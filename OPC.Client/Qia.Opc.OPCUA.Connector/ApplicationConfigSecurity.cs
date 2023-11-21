@@ -6,7 +6,6 @@ namespace Qia.Opc.OPCUA.Connector
 {
 	using global::Opc.Ua.Security.Certificates;
 	using Qia.Opc.Domain.Core;
-	using Qia.Opc.OPCUA.Connector.Services;
 	using System.Collections.Generic;
 	using System.IO;
 	using System.Threading.Tasks;
@@ -19,7 +18,7 @@ namespace Qia.Opc.OPCUA.Connector
 		/// <summary>
 		/// Add own certificate to trusted peer store.
 		/// </summary>
-		public static bool TrustMyself { get; set; } = false;
+		public static bool TrustMyself { get; set; } = true;
 
 		/// <summary>
 		/// Certficate store configuration for own, trusted peer, issuer and rejected stores.
@@ -88,7 +87,7 @@ namespace Qia.Opc.OPCUA.Connector
 		/// <summary>
 		/// Configures OPC stack certificates.
 		/// </summary>
-		public async Task InitApplicationSecurityAsync(KeyVaultService keyVaultService)
+		public async Task InitApplicationSecurityAsync()
 		{
 			// security configuration
 			ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
@@ -135,8 +134,8 @@ namespace Qia.Opc.OPCUA.Connector
 				//StorePath = appSettings.KeyVaultUri,
 				SubjectName = ApplicationConfiguration.ApplicationName
 			};
-			//LoggerManager.Logger.Information($"Application Certificate store type is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StoreType}");
-			//LoggerManager.Logger.Information($"Application Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath}");
+			LoggerManager.Logger.Information($"Application Certificate store type is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StoreType}");
+			LoggerManager.Logger.Information($"Application Certificate store path is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.StorePath}");
 			LoggerManager.Logger.Information($"Application Certificate subject name is: {ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.SubjectName}");
 
 			// handle cert validation
@@ -229,15 +228,15 @@ namespace Qia.Opc.OPCUA.Connector
 
 				LoggerManager.Logger.Information($"Application certificate with thumbprint '{certificate.Thumbprint}' created.");
 
-				ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate = certificate ?? throw new Exception("OPC UA application certificate can not be created! Cannot continue without it!");
-				await ApplicationConfiguration.CertificateValidator.UpdateCertificate(ApplicationConfiguration.SecurityConfiguration);
 			}
 			else
 			{
 				LoggerManager.Logger.Information($"Application certificate with thumbprint '{certificate.Thumbprint}' found in the application certificate store.");
 			}
 
-			//// update security information
+			// update security information
+			ApplicationConfiguration.SecurityConfiguration.ApplicationCertificate.Certificate = certificate ?? throw new Exception("OPC UA application certificate can not be created! Cannot continue without it!");
+			await ApplicationConfiguration.CertificateValidator.UpdateCertificate(ApplicationConfiguration.SecurityConfiguration);
 
 			//ApplicationConfiguration.ApplicationUri = GetApplicationUriFromCertificate(certificate);
 			LoggerManager.Logger.Information($"Application certificate is for ApplicationUri '{ApplicationConfiguration.ApplicationUri}', ApplicationName '{ApplicationConfiguration.ApplicationName}' and Subject is '{ApplicationConfiguration.ApplicationName}'");
@@ -252,6 +251,7 @@ namespace Qia.Opc.OPCUA.Connector
 					using ICertificateStore trustedStore = ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
 					LoggerManager.Logger.Information($"Adding server certificate to trusted peer store. StorePath={ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.StorePath}");
 					await trustedStore.Add(certificate);
+					trustedStore.Close();
 				}
 				catch (Exception e)
 				{
@@ -424,6 +424,8 @@ namespace Qia.Opc.OPCUA.Connector
 		/// </summary>
 		public void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
 		{
+			LoggerManager.Logger.Warning($"Certificate validation status: {e.Error.StatusCode}.");
+
 			if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
 			{
 				e.Accept = AutoAcceptCerts;
@@ -442,6 +444,8 @@ namespace Qia.Opc.OPCUA.Connector
 				}
 			}
 		}
+
+		#region args configuration
 
 		/// <summary>
 		/// Delete certificates with the given thumbprints from the trusted peer and issuer certifiate store.
@@ -1020,7 +1024,8 @@ namespace Qia.Opc.OPCUA.Connector
 			}
 
 			return true;
-		}
+		} 
+		#endregion
 
 		public bool CompareDistinguishedName(string dn1, string dn2)
 		{

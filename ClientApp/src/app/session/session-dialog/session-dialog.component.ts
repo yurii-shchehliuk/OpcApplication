@@ -31,8 +31,8 @@ export class SessionDialogComponent {
     }
   }
 
-  removeGroup() {
-    this.communicationService.leaveGroup(this.sessionData.name);
+  deleteSession() {
+    this.communicationService.leaveGroup(this.sessionData.sessionNodeId);
     this.sessionService.deleteSession(this.sessionData.name);
   }
 }

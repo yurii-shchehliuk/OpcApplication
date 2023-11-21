@@ -1,5 +1,4 @@
 <main>
-
   <mat-drawer-container>
     <mat-drawer mode="side" opened>
       <app-session></app-session>
@@ -7,11 +6,17 @@
     <mat-drawer-content>
       <app-navbar></app-navbar>
       <app-node-chart></app-node-chart>
+      <div class="spinner-overlay" *ngIf="loading$ | async">
+        <mat-spinner></mat-spinner>
+      </div>
+      
     </mat-drawer-content>
-    <mat-drawer mode="side" opened position="end">
+
+    <!-- <mat-drawer mode="side" opened position="end">
       <app-opc-settings></app-opc-settings>
-    </mat-drawer>
+    </mat-drawer> -->
   </mat-drawer-container>
 </main>
 
 <!-- <app-footer></app-footer> -->
+<!-- <router-outlet *ngIf="!(loading$ | async)"></router-outlet> -->

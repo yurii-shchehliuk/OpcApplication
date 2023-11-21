@@ -16,7 +16,7 @@ import { SessionEntity } from '../models/sessionModels';
   styleUrls: ['./session.component.scss'],
 })
 export class SessionComponent {
-  sessionArr: SessionEntity[];
+  sessionArr: SessionEntity[] = [];
   panelOpenState = false;
 
   @ViewChild('sessionList') sessionArrElem: ElementRef;
@@ -24,30 +24,71 @@ export class SessionComponent {
   constructor(
     private sessionService: SessionService,
     private communicationService: CommunicationService,
-    public dialog: MatDialog
+    public dialog: MatDialog,
+    private subscriptionService: SubscriptionService
   ) {
     this.communicationService.signalrInit();
   }
 
   ngOnInit(): void {
+    //1 get all sessions
     this.sessionService.sessionList$.subscribe((res) => {
-      this.sessionArr = res;
+      res.map((session) => {
+        const index = this.sessionArr.findIndex(
+          (sessionItem) => sessionItem.name === session.name
+        );
+        if (index !== -1) {
+          // if we have connected session with the same name, disconnect
+          if (
+            session.sessionId != null &&
+            session.sessionId != this.sessionArr[index].sessionId
+          ) {
+            this.sessionService.disconnect(this.sessionArr[index]);
+            this.sessionArr[index] = session;
+          }
+        } else {
+          this.sessionArr.push(session);
+        }
+      });
     });
+
+    //2 on connected replace session entity
+    this.sessionService.selectedSession$.subscribe((res) => {
+      if (res.sessionNodeId) {
+        const index = this.sessionArr.findIndex(
+          (session) => session.name === res.name
+        );
+        if (index !== -1) {
+          this.sessionArr[index] = res;
+        } else {
+          this.sessionArr.push(res);
+        }
+        this.communicationService.joinNewGroup(res.sessionNodeId);
+      }
+    });
+
     this.sessionService.getSessionList();
   }
 
-  selectSession(channel: SessionEntity) {
+  selectSession(selectedSession: SessionEntity) {
+    this.sessionArr.map((session) => {
+      if (
+        session.sessionId === selectedSession.sessionId &&
+        session.name == selectedSession.name
+      ) {
+        this.sessionService.connectToSession(session);
+      } else {
+        this.communicationService.leaveGroup(session.sessionNodeId);
+      }
+    });
+
     let childrens = this.sessionArrElem.nativeElement.children;
     for (let item of childrens) {
       let value = item.getElementsByClassName('channel-text')[0].innerText;
-
-      if (value === channel.name) {
+      if (value === selectedSession.name) {
         item.classList.add('channel-selected');
-        this.communicationService.joinNewGroup(channel.name);
-        this.sessionService.connectToSession(channel);
       } else {
         item.classList.remove('channel-selected');
-        this.communicationService.leaveGroup(value);
       }
     }
   }
@@ -61,11 +102,10 @@ export class SessionComponent {
     });
 
     sessionDialog.afterClosed().subscribe({
-      next: (value) => {
+      next: () => {
+        this.sessionArr = [];
         this.sessionService.getSessionList();
-      },
-      complete: () => {
-        this.sessionService.getSessionList();
+        this.sessionService.getActiveSessions();
       },
     });
     event.stopPropagation();

@@ -1,17 +1,18 @@
 ﻿using AutoMapper;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Qia.Opc.Domain.Core;
-using Qia.Opc.Domain.DTO;
 using Qia.Opc.Domain.Entities;
-using Qia.Opc.Infrastrucutre.Services.Communication;
+using Qia.Opc.Infrastructure.Application;
 using Qia.Opc.OPCUA.Connector.Managers;
 using Qia.Opc.Persistence.Repository;
-using System.Reflection;
-using ISession = Opc.Ua.Client.ISession;
+using QIA.Opc.Domain.Request;
+using QIA.Opc.Domain.Response;
+using QIA.Opc.Infrastructure.Services.Communication;
 
-namespace Qia.Opc.Infrastrucutre.Services.OPCUA
+namespace QIA.Opc.Infrastructure.Services.OPCUA
 {
 	public class SubscriptionService
 	{
@@ -20,112 +21,89 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 		private readonly SignalRService signalRService;
 		private readonly IMapper mapper;
 		private readonly NodeService nodeService;
-		private readonly SessionService sessionService;
 
-		//
-		private readonly ISession session;
-		private List<NodeValue> tempNodes = new();
-
-		public SubscriptionService(SessionManager sessionManager, SubscriptionManager subscriptionManager, SignalRService signalRService, NodeService nodeService, SessionService sessionService, IMapper mapper)
+		public SubscriptionService(SessionManager sessionManager,
+							 SubscriptionManager subscriptionManager,
+							 SignalRService signalRService,
+							 NodeService nodeService,
+							 IMapper mapper)
 		{
-			session = sessionManager.CurrentSession.Session;
 			this.sessionManager = sessionManager;
 			this.subscriptionManager = subscriptionManager;
 			this.signalRService = signalRService;
 			this.mapper = mapper;
 			this.nodeService = nodeService;
-			this.sessionService = sessionService;
-			subscriptionManager.NodeMonitorUpdate += SubscriptionManager_MonitoredItemUpdate;
-			subscriptionManager.SessionEvent += SubscriptionManager_SessionEvent;
+			subscriptionManager.Session_NotificationEvent += SubscriptionManager_SessionNotificationEvent;
 		}
 
-		public async Task<NodeReferenceEntity> SubscribeAsync(NodeReferenceEntity nodeRef)
+		public async Task SubscribeAsync(SubscriptionParameters subsParams, string nodeId)
 		{
-			var newNodeRef = subscriptionManager.Subscribe(nodeRef);
-			await nodeService.UpsertConfigAsync(newNodeRef);
-			return newNodeRef;
+			try
+			{
+				var subscriptionId = subscriptionManager.Subscribe(subsParams, nodeId);
+
+				//var newNodeRef = await nodeService.FindNodeByNodeIdAsync(nodeId);
+				//newNodeRef.SubscriptionId = subscriptionId.ToString();
+				//await nodeService.UpsertConfigAsync(newNodeRef);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("Cannot subscribe to the node: {0} {1}", ex);
+			}
+			await Task.CompletedTask;
 		}
 
-		public async Task DeleteSubscriptionAsync(string subscriptionId, string nodeId)
+		public async Task AddToSubscription(string subscriptionName, string nodeId)
 		{
-			var subscription = uint.Parse(subscriptionId);
-			subscriptionManager.DeleteSubscription(subscription);
-			var nodeRef = await nodeService.FindNodeByNodeIdAsync(nodeId);
-			nodeRef.SubscriptionId = null;
-			await nodeService.UpsertConfigAsync(nodeRef);
+			try
+			{
+				subscriptionManager.AddToSubscription(subscriptionName, nodeId);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("Cannot add to the subscription: {0} {1}", ex);
+			}
+			await Task.CompletedTask;
 		}
 
-		public IEnumerable<SubscriptionDTO> GetActiveSubscriptions()
+		public async Task DeleteSubscriptionAsync(uint subscriptionId)
+		{
+			subscriptionManager.DeleteSubscription(subscriptionId);
+			await Task.CompletedTask;
+		}
+
+		public async Task GetActiveSubscriptions()
 		{
 			var subscriptions = subscriptionManager.GetActiveSubscriptions();
-			var subscriptionsDTO = mapper.Map<IEnumerable<SubscriptionDTO>>(subscriptions);
-			return subscriptionsDTO;
-		}
+			var subscriptionsDTO = mapper.Map<IEnumerable<Domain.Response.SubscriptionResponce>>(subscriptions);
 
-		public IEnumerable<MonitoredItem> GetAllMonitoredItems()
-		{
-			return subscriptionManager.GetAllMonitoredItems();
-		}
-
-		private async Task AddByMillisecondsAsync(NodeValue nodeData)
-		{
-			if (nodeData.MSecs == null || nodeData.MSecs <= 0)
-				return;
-
-			var lastStored = tempNodes.Where(c => c.NodeId == nodeData.NodeId).FirstOrDefault();
-
-			if (lastStored == null || ((nodeData.StoreTime - lastStored.StoreTime.Value).Value.TotalSeconds <= nodeData.MSecs))
+			foreach (var item in subscriptionsDTO)
 			{
-				tempNodes.Add(nodeData);
-			}
-			else
-			{
-				await AddNewNodeAsync(nodeData, "msecs");
-				tempNodes.RemoveAll(c => c.NodeId == nodeData.NodeId);
+				await signalRService.SendSubscriptionAsync(item, item.SessionNodeId);
 			}
 		}
 
-		private async Task AddByRangeAsync(NodeValue nodeData)
+		public void SetPublishingMode(string subscriptionId, bool enable)
 		{
-			if (nodeData.Range == null || nodeData.Range <= 0)
-				return;
-
-			int tempDbCount = tempNodes.Where(c => c.NodeId == nodeData.NodeId).Count();
-
-			// update node per range
-			if (tempDbCount < nodeData.Range)
-			{
-				tempNodes.Add(nodeData);
-			}
-			else
-			{
-				await AddNewNodeAsync(nodeData, "range");
-				tempNodes.RemoveAll(c => c.NodeId == nodeData.NodeId);
-			}
+			subscriptionManager.SetPublishingMode(subscriptionId, enable);
 		}
 
-		private async Task AddNewNodeAsync(NodeValue nodeData, string monitoringCategory)
+		public void ModifySubscription(SubscriptionParameters subsParams, uint subscriptionId)
 		{
-			LoggerManager.Logger.Information($"[monitoring {monitoringCategory}] {nodeData.DisplayName} {nodeData.Value}");
-
-			await nodeService.AddNodeValueAsync(nodeData);
-			await signalRService.SendNodeAsync(nodeData, nodeData.SessionName);
-			//await _azureMS.SendNodeAsync(entity);
+			this.subscriptionManager.Modify(subsParams, subscriptionId);
 		}
 
-		private async void SubscriptionManager_MonitoredItemUpdate(object sender, NodeValue node)
+		public void DeleteMonitoringItem(uint subscriptionId, string nodeId)
 		{
-			NodeReferenceEntity nodeConfig = await nodeService.FindNodeByNodeIdAsync(node.NodeId);
-			var sessionName = await sessionService.FindSessionAsync((int)nodeConfig.SessionEntityId);
+			subscriptionManager.DeleteMonitoringItem
+						(subscriptionId, nodeId);
+		}
 
-			node.SessionName = sessionName.Name;
-			node.DisplayName = nodeConfig.DisplayName;
-			node.MSecs = nodeConfig.MSecs;
-			node.Range = nodeConfig.Range;
+		private async Task SendSubscriptionAsync(SubscriptionResponce subscriptionResponce)
+		{
+			LoggerManager.Logger.Information($"[monitoring subscription] Name: {subscriptionResponce.DisplayName} SessionId: {subscriptionResponce.SessionNodeId} Interval:{subscriptionResponce.PublishInterval}");
 
-			node.StoreTime = DateTime.Now;
-			await AddByMillisecondsAsync(node);
-			await AddByRangeAsync(node);
+			await signalRService.SendSubscriptionAsync(subscriptionResponce, subscriptionResponce.SessionNodeId);
 		}
 
 		/// <summary>
@@ -133,7 +111,7 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 		/// </summary>
 		private bool isHandlingEvent = false;
 		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
-		private async void SubscriptionManager_SessionEvent(object senderSession, NotificationEventArgs e)
+		private async void SubscriptionManager_SessionNotificationEvent(object senderSession, NotificationEventArgs e)
 		{
 			if (isHandlingEvent)
 			{
@@ -141,52 +119,75 @@ namespace Qia.Opc.Infrastrucutre.Services.OPCUA
 				return;
 			}
 			isHandlingEvent = true;
-			await _semaphore.WaitAsync();
+			//await _semaphore.WaitAsync();
 
 			try
 			{
-				foreach (var subscriptionItems in session.Subscriptions)
+				// get the changes.
+				List<MonitoredItemNotification> changes = new List<MonitoredItemNotification>();
+				foreach (MonitoredItemNotification change in e.NotificationMessage.GetDataChanges(false))
 				{
-					foreach (var monitoringItem in subscriptionItems.MonitoredItems)
+					if (e.Subscription.FindItemByClientHandle(change.ClientHandle) == null)
 					{
-						string currentNodeId = monitoringItem.ResolvedNodeId.ToString();
-						var nodeRefConfig = await nodeService.FindNodeByNodeIdAsync(currentNodeId);
-
-						if (nodeRefConfig != null)
-						{
-							var nodeValueNew = nodeService.ReadNodeValueOnServer(monitoringItem.ResolvedNodeId.ToString());
-							var sessionName = await sessionService.FindSessionAsync((int)nodeRefConfig.SessionEntityId);
-							NodeValue nodeData = new()
-							{
-								SessionName = sessionName.Name,
-								DisplayName = nodeRefConfig.DisplayName,
-								StoreTime = DateTime.Now,
-								Value = nodeValueNew?.Value.ToString(),
-								NodeId = currentNodeId,
-								MSecs = nodeRefConfig.MSecs,
-								Range = nodeRefConfig.Range,
-							};
-
-							if (nodeRefConfig.SubscriptionId == null)
-							{
-								nodeRefConfig.SubscriptionId = subscriptionItems.Id.ToString();
-								await nodeService.UpsertConfigAsync(nodeRefConfig);
-							}
-
-							await AddByMillisecondsAsync(nodeData);
-							await AddByRangeAsync(nodeData);
-						}
+						continue;
 					}
+					changes.Add(change);
 				}
+
+				if (changes.Count == 0 || e.Subscription.Session.SessionId == null) return;
+
+				var subscriptionResponce = new SubscriptionResponce
+				{
+					DisplayName = e.Subscription.DisplayName,
+					Id = e.Subscription.Id,
+					ItemsCount = e.Subscription.MonitoredItemCount,
+					PublishInterval = e.Subscription.PublishingInterval,
+					SequenceNumber = e.Subscription.SequenceNumber,
+					SessionNodeId = e.Subscription.Session.SessionId.ToString(),
+					PublishingEnabled = e.Subscription.PublishingEnabled,
+				};
+
+				foreach (var change in changes)
+				{
+					var monitoringItem = e.Subscription.FindItemByClientHandle(change.ClientHandle);
+					if (monitoringItem == null)
+						continue;
+
+					subscriptionResponce.MonitoringItems.Add(new MonitoredItemResponse()
+					{
+						DisplayName = monitoringItem.DisplayName,
+						StartNodeId = monitoringItem.StartNodeId.ToString(),
+						SourceTime = change.Value.SourceTimestamp.ToLocalTime(),
+						QueueSize = monitoringItem.QueueSize,
+						Value = change.Value.WrappedValue.Value,
+						SamplingInterval = monitoringItem.SamplingInterval,
+					});
+
+					var nodeValue = new NodeValue
+					{
+						DisplayName = monitoringItem.DisplayName,
+						NodeId = monitoringItem.StartNodeId.ToString(),
+						StoreTime = change.Value.SourceTimestamp.ToLocalTime(),
+						MSecs = subscriptionResponce.PublishInterval,
+						Value = change.Value.WrappedValue.Value.ToString(),
+						SessionName = subscriptionResponce.SessionNodeId
+					};
+					LoggerManager.Logger.Information($"[monitoring node] NodeId: {nodeValue.NodeId}");
+
+					await signalRService.SendNodeAsync(nodeValue, subscriptionResponce.SessionNodeId);
+					await nodeService.AddNodeValueAsync(nodeValue);
+					//await _azureMS.SendNodeAsync(entity);
+				}
+
+				await SendSubscriptionAsync(subscriptionResponce);
 			}
 			catch (Exception ex)
 			{
-				LoggerManager.Logger.Error(ex.Message, ex);
+				LoggerManager.Logger.Error($"Collection error, {ex.Message}");
 			}
 			finally
 			{
-				Thread.Sleep(200);
-				_semaphore.Release();
+				//_semaphore.Release();
 				isHandlingEvent = false;
 			}
 		}

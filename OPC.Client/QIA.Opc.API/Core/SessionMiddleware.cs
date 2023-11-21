@@ -33,7 +33,7 @@ namespace QIA.Opc.API.Core
 		private bool ValidateSession(string pathValue)
 		{
 			var pathToValidate = new[] { "/node", "/subscription", "/tree" };
-
+			return false;
 			return pathToValidate.Any(path => pathValue.ToLowerInvariant().Contains(path));
 		}
 	}

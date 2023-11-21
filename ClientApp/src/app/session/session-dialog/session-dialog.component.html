@@ -12,8 +12,13 @@
         <mat-label>id</mat-label>
         <input matInput [(ngModel)]="sessionData.sessionId" readonly>
     </mat-form-field>
+    <mat-form-field [hidden]="addNew">
+        <mat-label>session node id</mat-label>
+        <input matInput [(ngModel)]="sessionData.sessionNodeId" readonly>
+    </mat-form-field>
+
 </mat-dialog-content>
 <mat-dialog-actions align="end">
-    <button mat-flat-button [mat-dialog-close]="false" [hidden]="addNew" (click)="removeGroup()">Delete</button>
+    <button mat-flat-button [mat-dialog-close]="false" [hidden]="addNew" (click)="deleteSession()">Delete</button>
     <button mat-flat-button [mat-dialog-close]="true" (click)="addSession()">Save</button>
 </mat-dialog-actions>

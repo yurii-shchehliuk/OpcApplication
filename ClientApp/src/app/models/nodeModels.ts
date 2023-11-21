@@ -1,7 +1,6 @@
 export interface NodeValue {
   nodeId: string;
   displayName: string;
-  range: number | null;
   mSecs: number | null;
   storeTime: string;
   value: number;
@@ -13,7 +12,6 @@ export interface NodeReference {
   subscriptionId: string | null;
   sessionEntityId: number;
   nodeClass: NodeClass;
-  range: number | null;
   mSecs: number | null;
 }
 

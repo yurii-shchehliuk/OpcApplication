@@ -11,11 +11,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatListModule } from '@angular/material/list';
 import { MatInputModule } from '@angular/material/input';
 import { MatTreeModule } from '@angular/material/tree';
+import { MatMenuModule } from '@angular/material/menu';
 
 import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -32,6 +33,9 @@ import { NodeChartComponent } from './node-chart/node-chart.component';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { ToastrModule } from 'ngx-toastr';
+import { SubscriptionComponent } from './subscription/subscription.component';
+import { SubscriptionParametersDialogComponent } from './subscription/subscription-parameters-dialog/subscription-parameters-dialog.component';
+import { MonitoringItemDialogComponent } from './monitoring-item-dialog/monitoring-item-dialog.component';
 
 @NgModule({
   declarations: [
@@ -43,6 +47,9 @@ import { ToastrModule } from 'ngx-toastr';
     SessionDialogComponent,
     NodeChartComponent,
     FooterComponent,
+    SubscriptionComponent,
+    SubscriptionParametersDialogComponent,
+    MonitoringItemDialogComponent,
   ],
   imports: [
     BrowserModule,
@@ -55,7 +62,6 @@ import { ToastrModule } from 'ngx-toastr';
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
-    MatInputModule,
     MatListModule,
     MatCardModule,
     MatSidenavModule,
@@ -63,6 +69,8 @@ import { ToastrModule } from 'ngx-toastr';
     MatDialogModule,
     MatExpansionModule,
     MatProgressBarModule,
+    MatProgressSpinnerModule,
+    MatMenuModule,
     //
     HttpClientModule,
     ReactiveFormsModule,

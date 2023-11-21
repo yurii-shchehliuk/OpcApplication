@@ -26,209 +26,54 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		/// <summary>
 		/// Browse server's data tree
 		/// </summary>
-		public TreeNode BrowseTree()
+		public async Task<TreeNode> BrowseTreeAsync()
 		{
 			var session = sessionManager.CurrentSession.Session;
+			LoggerManager.Logger.Information($"Parsing full tree started for {sessionManager.CurrentSession.Name}");
 			session.Browse(null, null, ObjectIds.ObjectsFolder, 0u, BrowseDirection.Forward,
-									ReferenceTypeIds.HierarchicalReferences, true,
-									(uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method,
-									out byte[] nextCp, out ReferenceDescriptionCollection nextRefs);
+							ReferenceTypeIds.HierarchicalReferences, true,
+							(uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method,
+							out _, out ReferenceDescriptionCollection nextRefs);
 
-			int deepLvl = 0;
-			string parentName = "ROOT";
-
-			var treeNode = new TreeNode()
+			var rootNode = new TreeNode()
 			{
-				DisplayName = parentName,
-				NodeId = deepLvl.ToString(),
+				DisplayName = "ROOT",
+				NodeId = "0",
 			};
-			;
-			Console.WriteLine("DisplayName  |  BrowseName  |  NodeClass\n" +
-							  "-------------+--------------+-----------");
-			// browse all the available nodes
-			foreach (var rd in nextRefs)
-			{
-				BrowseFoldersFunc(rd, treeNode.Children);
-			}
 
-			return treeNode;
+			await ProcessNodesAsync(nextRefs, rootNode, session, 1);
 
-			void BrowseFoldersFunc(ReferenceDescription rd, HashSet<TreeNode> treeNodeList)
-			{
-				deepLvl++;
-				string currentName = rd.DisplayName.Text;
-				string currentNodeId = rd.NodeId.Identifier.ToString();
-				Console.WriteLine($"[{deepLvl} - {parentName}] {rd.DisplayName}  |   {rd.BrowseName}  |   {rd.NodeClass}   |   {rd.NodeId}");
-
-				/// skip if already added
-				var valueExist = treeNodeList.FirstOrDefault(c => c.NodeId == currentNodeId);
-				if (valueExist != null)
-					return;
-
-				/// same row children
-				treeNodeList.Add(new()
-				{
-					NodeId = currentNodeId,
-					DisplayName = currentName,
-				});
-
-				session.Browse(null, null, ExpandedNodeId.ToNodeId(rd.NodeId, session.NamespaceUris), 0u, BrowseDirection.Forward,
-										ReferenceTypeIds.HierarchicalReferences, true,
-										(uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method, out byte[] nextCp,
-										out ReferenceDescriptionCollection nextRefs);
-
-				/// next row children
-				if (nextRefs != null && nextRefs.Count > 0)
-				{
-					foreach (var item in nextRefs)
-					{
-						parentName = rd.DisplayName.Text;
-						var currentNode = treeNodeList.FirstOrDefault(c => c.NodeId == rd.NodeId.Identifier.ToString());
-						BrowseFoldersFunc(item, currentNode.Children);
-					}
-				}
-
-				deepLvl--;
-			}
+			LoggerManager.Logger.Information($"Parsing full tree compleated for {sessionManager.CurrentSession.Name}");
+			return rootNode;
 		}
 
-		/// <summary>
-		/// Reads server's nodes and prepares tree
-		/// </summary>
-		/// <param name="itemsToFind"></param>
-		/// <param name="newAppSettings">if signalR have updated appsettings it sends it here</param>
-		/// <returns></returns>
-		public TreeNode FindNodesRecursively(HashSet<Domain.Entities.NodeReferenceEntity> itemsToFind)
+		private async Task ProcessNodesAsync(ReferenceDescriptionCollection nodes, TreeNode parent, Session session, int level)
 		{
-			if (itemsToFind is null || itemsToFind.Count() == 0)
-				return null;
-
-			int deepLvl = 0;
-			string parentName = "ROOT";
-			TreeNode treeGraph = new()
+			foreach (var node in nodes)
 			{
-				NodeId = (deepLvl + 1).ToString(),
-				DisplayName = parentName,
-			};
-
-			HashSet<Domain.Entities.NodeReferenceEntity> notFoundItems = new(itemsToFind); ///scince we are checking HasNeededChild we need a copy
-
-			var session = sessionManager.CurrentSession.Session;
-
-			session.Browse(null, null, ObjectIds.ObjectsFolder, 0u, BrowseDirection.Forward,
-					ReferenceTypeIds.HierarchicalReferences, true,
-					(uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method,
-					out byte[] nextCp, out ReferenceDescriptionCollection nextRefs);
-
-			Console.WriteLine();
-			LoggerManager.Logger.Information("# Searching started");
-
-			int foundCounter = 0;
-			LoggerManager.Logger.Information("Found {0} nodes", foundCounter);
-			int lineToUpdate = 0;
-			try
-			{
-				lineToUpdate = Console.CursorTop;
-			}
-			catch
-			{
-			}
-
-			Console.WriteLine("DisplayName  |  BrowseName  |  NodeClass\n" +
-							  "-------------+--------------+-----------");
-
-			// browse all the nodes
-			foreach (var rd in nextRefs)
-			{
-				FindNodesRecursivelyFunc(rd, treeGraph.Children);
-			}
-
-			foreach (var item in notFoundItems)
-			{
-				LoggerManager.Logger.Error("404: {0} | {1}", item.NodeId, item.DisplayName);
-			}
-
-			return treeGraph;
-
-			void FindNodesRecursivelyFunc(ReferenceDescription rd, HashSet<TreeNode> treeNodeList)
-			{
-				deepLvl++;
-				bool valueFound = false;
-				string currentNodeId = rd.NodeId.ToString();
-
-				/// add same row children
-				var currentNode = (new TreeNode
+				string nodeId = node.NodeId.Identifier.ToString();
+				if (parent.Children.Any(c => c.NodeId == nodeId))
 				{
-					NodeId = currentNodeId,
-					DisplayName = rd.DisplayName.Text,
-				});
-
-				/// skip if already added
-				var valueExist = treeNodeList.FirstOrDefault(c => c.NodeId == currentNodeId);
-				if (valueExist != null)
-					return;
-
-				treeNodeList.Add(currentNode);
-
-				var foundItem = itemsToFind?.FirstOrDefault(c => c.NodeId == currentNodeId);
-				if (foundItem is not null)
-				{
-					foundCounter++;
-					LoggerManager.UpdateConsoleLine(lineToUpdate, string.Format("Found {0} nodes", foundCounter));
-
-					Console.WriteLine($"[{deepLvl} - {parentName}] {rd.DisplayName}  |   {rd.BrowseName}  |   {rd.NodeClass}   |   {rd.NodeId}");
-
-					var baseNode = mapper.Map<Domain.Entities.NodeReferenceEntity>(rd);
-					NodeFound.Invoke(this, baseNode);
-
-					// new tree to be populated
-					valueFound = true;
-					notFoundItems.Remove(foundItem);
+					continue;
 				}
 
-				session.Browse(null, null, ExpandedNodeId.ToNodeId(rd.NodeId, session.NamespaceUris), 0u, BrowseDirection.Forward,
-										ReferenceTypeIds.HierarchicalReferences, true,
-										(uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method,
-										out byte[] nextCp, out ReferenceDescriptionCollection nextRefs);
-
-				/// next row children
-				if (nextRefs != null && nextRefs.Count > 0)
+				var treeNode = new TreeNode()
 				{
-					foreach (var nextRd in nextRefs)
-					{
-						parentName = rd.DisplayName.Text;
-						// Get parent in the new tree
-						var childNode = treeNodeList.FirstOrDefault(c => c.NodeId == currentNodeId.ToString());
-						FindNodesRecursivelyFunc(nextRd, childNode.Children);
-					}
-				}
+					DisplayName = node.DisplayName.Text,
+					NodeId = nodeId,
+				};
 
-				/// do current parent has needed child
-				bool hasNeeded = HasNeededChild(treeNodeList.FirstOrDefault(c => c.NodeId == currentNodeId).Children, itemsToFind);
-				if (!valueFound && !hasNeeded || nextRefs.Count == 0 && !valueFound)
+				parent.Children.Add(treeNode);
+
+				session.Browse(null, null, ExpandedNodeId.ToNodeId(node.NodeId, session.NamespaceUris), 0u, BrowseDirection.Forward,
+								ReferenceTypeIds.HierarchicalReferences, true,
+								(uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method,
+								out _, out ReferenceDescriptionCollection childNodes);
+
+				if (childNodes != null && childNodes.Count > 0)
 				{
-					treeNodeList.Remove(currentNode);
+					await ProcessNodesAsync(childNodes, treeNode, session, level + 1);
 				}
-
-				deepLvl--;
-			}
-
-			bool HasNeededChild(HashSet<TreeNode> treeNode, HashSet<Domain.Entities.NodeReferenceEntity> itemsToFind = null)
-			{
-				foreach (var itemTree in treeNode)
-				{
-					if (itemsToFind.Any(c => c.NodeId == itemTree.NodeId))
-					{
-						return true;
-					}
-
-					if (itemTree.Children.Any())
-					{
-						return HasNeededChild(itemTree.Children, itemsToFind);
-					}
-				}
-
-				return false;
 			}
 		}
 

@@ -2,7 +2,6 @@
 using Opc.Ua.Configuration;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
-using Qia.Opc.OPCUA.Connector.Services;
 using System.Diagnostics;
 using System.Reflection;
 
@@ -11,11 +10,9 @@ namespace Qia.Opc.OPCUA.Connector
 	using static LoggerManager;
 	public partial class ApplicationConfigBuilder
 	{
-		private readonly KeyVaultService keyVaultService;
 
-		public ApplicationConfigBuilder(KeyVaultService keyVaultService)
+		public ApplicationConfigBuilder()
 		{
-			this.keyVaultService = keyVaultService;
 		}
 
 		public ApplicationConfiguration ApplicationConfiguration { get; private set; }
@@ -62,7 +59,7 @@ namespace Qia.Opc.OPCUA.Connector
 			ApplicationConfiguration.TraceConfiguration.ApplySettings();
 			Utils.Tracing.TraceEventHandler += new EventHandler<TraceEventArgs>(LoggerOpcUaTraceHandler);
 
-			await InitApplicationSecurityAsync(keyVaultService);
+			await InitApplicationSecurityAsync();
 
 			await ShowCertificateStoreInformationAsync();
 

@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Opc.Ua;
-using Qia.Opc.Domain.DTO;
+using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Entities;
-using Qia.Opc.Infrastrucutre.Services.OPCUA;
+using QIA.Opc.Domain.Request;
+using QIA.Opc.Domain.Response;
+using QIA.Opc.Infrastructure.Services.OPCUA;
 
 namespace QIA.Opc.API.Controllers
 {
@@ -15,25 +17,61 @@ namespace QIA.Opc.API.Controllers
 			this.subscriptionService = subscriptionService;
 		}
 
-		[HttpPost("create")]
-		public async Task<ActionResult<NodeReferenceEntity>> CreateSubscription([FromBody] NodeReferenceEntity nodeReference)
+		[HttpPost("create/{nodeId}")]
+		public async Task<IActionResult> CreateSubscription([FromBody] SubscriptionParameters subsParams, string nodeId)
 		{
-			var nodeRef = await subscriptionService.SubscribeAsync(nodeReference);
-			return Ok(nodeRef);
+			if (!nodeId.TryParseNodeId(out var node))
+				return NotFound("NodeId cannot be parsed");
+
+			await subscriptionService.SubscribeAsync(subsParams, nodeId);
+			return Ok();
 		}
 
-		[HttpDelete("{subscriptionId}/{nodeId}")]
-		public async Task<IActionResult> DeleteSubscription(string subscriptionId, string nodeId)
+		[HttpPut("addToSubscription/{subscriptionName}/{nodeId}")]
+		public async Task<IActionResult> AddToSubscription(string subscriptionName, string nodeId)
 		{
-			await subscriptionService.DeleteSubscriptionAsync(subscriptionId, nodeId);
+			if (!nodeId.TryParseNodeId(out var node))
+				return NotFound("NodeId cannot be parsed");
+
+			await subscriptionService.AddToSubscription(subscriptionName, nodeId);
+
+			return Ok();
+		}
+
+		[HttpDelete("{subscriptionId}")]
+		public async Task<IActionResult> DeleteSubscription(uint subscriptionId)
+		{
+			await subscriptionService.DeleteSubscriptionAsync(subscriptionId);
+			return Ok();
+		}
+
+		[HttpDelete("deleteMonitoringItem/{subscriptionId}/{nodeId}")]
+		public IActionResult DeleteMonitoringItem(uint subscriptionId, string nodeId)
+		{
+			subscriptionService.DeleteMonitoringItem(subscriptionId, nodeId);
+			return Ok();
+		}
+
+		[HttpPut("modify/{subscriptionId}")]
+		public IActionResult ModifySubscription([FromBody] SubscriptionParameters subsParams, uint subscriptionId)
+		{
+			subscriptionService.ModifySubscription(subsParams, subscriptionId);
+			return Ok();
+		}
+
+		[HttpPut("setPublishingMode/{subscriptionId}/{enable}")]
+		public IActionResult SetPublishingMode(string subscriptionId, bool enable)
+		{
+			subscriptionService.SetPublishingMode(subscriptionId, enable);
+
 			return Ok();
 		}
 
 		[HttpGet("list")]
-		public ActionResult<SubscriptionDTO> GetActiveSubscriptions()
+		public async Task<IActionResult> GetActiveSubscriptions()
 		{
-			var items = subscriptionService.GetActiveSubscriptions();
-			return Ok(items);
+			await subscriptionService.GetActiveSubscriptions();
+			return Ok();
 		}
 	}
 }

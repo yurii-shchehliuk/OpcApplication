@@ -7,14 +7,14 @@ namespace Qia.Opc.Domain.Entities
 	/// <summary>
 	/// node reference 
 	/// </summary>
-	public class NodeReferenceEntity : TreeNodeBase, IBaseNode
+	public class NodeReferenceEntity : IBaseNode
 	{
-#pragma warning disable CS8632
+		public string NodeId { get; set; }
+		public string DisplayName { get; set; }
+		public NodeClass NodeClass { get; set; }
 		public string? SubscriptionId { get; set; }
 		public uint? MSecs { get; set; }
-		public uint? Range { get; set; }
 		public int? SessionEntityId { get; set; }
 		public SessionEntity? SessionEntity { get; set; }
-#pragma warning restore CS8632
 	}
 }

@@ -1,6 +1,6 @@
 ﻿using Qia.Opc.Domain.Entities;
 
-namespace Qia.Opc.Infrastrucutre.Interfaces
+namespace QIA.Opc.Infrastructure.Interfaces
 {
 	public interface IAzureMessageService
 	{

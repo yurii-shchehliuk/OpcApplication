@@ -5,18 +5,22 @@ import { environment } from 'src/environments/environment.development';
 import { NotificationService } from '../shared/notification.service';
 import { NodeValue } from '../models/nodeModels';
 import { EventData, LogCategory } from '../models/eventModels';
+import { SubscriptionEntity } from '../models/subscriptionModels';
 
 @Injectable({
   providedIn: 'root',
 })
 export class CommunicationService {
-  baseUrl = environment.server;
-
   private hubConnection: signalR.HubConnection;
-  private nodeSubject: Subject<NodeValue> = new Subject<NodeValue>();
+  private nodeSubject = new Subject<NodeValue>();
+  private subscriptionSubject = new Subject<SubscriptionEntity>();
 
   get getNodeObservable(): Observable<NodeValue> {
     return this.nodeSubject.asObservable();
+  }
+
+  get subscriptionObservable(): Observable<SubscriptionEntity> {
+    return this.subscriptionSubject.asObservable();
   }
 
   constructor(private notificationService: NotificationService) {}
@@ -36,6 +40,7 @@ export class CommunicationService {
       await this.hubConnection.start().then(() => {
         console.log('Connected to SignalR hub.');
         this.listenNodesSubscription();
+        this.listenSubscription();
         this.listenEventMessage();
       });
 
@@ -51,6 +56,13 @@ export class CommunicationService {
       let result = data as NodeValue;
       result.storeTime = new Date(data.storeTime).toLocaleString();
       this.nodeSubject.next(result);
+    });
+  }
+
+  private listenSubscription(method: string = 'SendSubscriptionAction') {
+    // get subscription with monitored items
+    this.hubConnection.on(method, (data: SubscriptionEntity) => {
+      this.subscriptionSubject.next(data);
     });
   }
 
@@ -73,6 +85,7 @@ export class CommunicationService {
     });
   }
 
+  // joining the group when session is selected and connected
   joinNewGroup(group: string): void {
     if (!this.hubConnection.connectionId) {
       this.signalrInit().then(() => {
@@ -84,6 +97,8 @@ export class CommunicationService {
   }
 
   leaveGroup(group: string): void {
-    this.hubConnection.invoke('LeaveGroup', group);
+    if (group) {
+      this.hubConnection.invoke('LeaveGroup', group);
+    }
   }
 }
