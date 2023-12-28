@@ -10,18 +10,18 @@
     <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
       <button mat-icon-button disabled></button>
       <p>
-        {{node.item.nodeId }} | {{node.item.displayName}}
+        {{node.item.startNodeId }} | {{node.item.displayName}}
       </p>
     </mat-tree-node>
     <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
       <div class="mat-tree-node">
-        <button mat-icon-button [attr.aria-label]="'Toggle ' + node.nodeId" matTreeNodeToggle>
+        <button mat-icon-button [attr.aria-label]="'Toggle ' + node.startNodeId" matTreeNodeToggle>
           <mat-icon class="mat-icon-rtl-mirror">
             {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
           </mat-icon>
         </button>
         <a>
-          {{node.item.nodeId }} | {{node.item.displayName}}
+          {{node.item.startNodeId }} | {{node.item.displayName}}
         </a>
         <div class="action">
           <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Example icon-button with a menu">
@@ -40,7 +40,7 @@
         </button>
         <ng-container *ngFor="let subscription of subscriptionsArr">
           <button mat-menu-item
-            (click)="addToSubscription(subscription.displayName, node.item)">{{subscription.displayName}}</button>
+            (click)="addToSubscription(subscription, node.item)">{{subscription.displayName}}</button>
         </ng-container>
       </mat-menu>
     </mat-tree-node>

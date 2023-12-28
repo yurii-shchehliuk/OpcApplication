@@ -11,6 +11,9 @@ section {
       height: 3em;
 
       &-text {
+        overflow: hidden;
+        max-width: 6em;
+        
         &:hover {
           cursor: pointer;
         }
@@ -20,38 +23,48 @@ section {
         margin: 0;
       }
 
-      i {
-        float: right;
-        width: 2.5em;
-        height: 2.5em;
-        padding: 0 0.45em;
-        margin-top: -0.5em;
-        &::before {
-          vertical-align: -webkit-baseline-middle;
-          margin-left: 0.25em;
-          margin-top: 0.3em;
-          color: gray;
-        }
-
-        border: 1px solid transparent;
-        border-radius: 50%;
-        &:hover {
-          cursor: pointer;
-          background: #ebebeb;
-        }
+      &-selected {
+        background-color: #f1f1f1;
       }
 
-      &-selected {
-        background-color: #fafafa;
+      .actions {
+        display: flex;
+        float: right;
+
+        i {
+          width: 2.5em;
+          height: 2.5em;
+          padding: 0 0.45em;
+          margin-top: -0.5em;
+          border: 1px solid transparent;
+          border-radius: 50%;
+
+          &::before {
+            vertical-align: -webkit-baseline-middle;
+            margin-left: 0.25em;
+            margin-top: 0.3em;
+            color: rgb(166, 166, 166);
+          }
+
+          &:hover {
+            cursor: pointer;
+            background: #ebebeb;
+
+            &::before {
+              vertical-align: -webkit-baseline-middle;
+              margin-left: 0.25em;
+              margin-top: 0.3em;
+            }
+          }
+        }
       }
 
       &:hover {
         background-color: #f5f5f5;
-        i {
-          &::before {
+        .actions {
+          i::before {
             color: black;
           }
-          display: block;
         }
       }
     }

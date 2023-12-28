@@ -24,7 +24,7 @@ export class SessionDialogComponent {
 
   addSession() {
     if (this.addNew) {
-      this.sessionData.sessionId = '';
+      this.sessionData.sessionGuidId = '';
       this.sessionService.createEndpoint(this.sessionData);
     } else {
       this.sessionService.updateSession(this.sessionData);
@@ -33,6 +33,6 @@ export class SessionDialogComponent {
 
   deleteSession() {
     this.communicationService.leaveGroup(this.sessionData.sessionNodeId);
-    this.sessionService.deleteSession(this.sessionData.name);
+    this.sessionService.deleteSession(this.sessionData);
   }
 }

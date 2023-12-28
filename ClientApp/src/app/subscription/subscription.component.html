@@ -2,11 +2,14 @@
     <div class="container-details">
         <div class="pl-1">
             <h4>Add node to subscription</h4>
+            <!-- <div class="actions">
+                <mat-icon>save</mat-icon>
+            </div> -->
         </div>
         <div class="newNode">
             <mat-form-field>
                 <mat-label>Node Id</mat-label>
-                <input matInput [(ngModel)]="newNode.nodeId" required>
+                <input matInput [(ngModel)]="newNode.startNodeId" required>
             </mat-form-field>
             <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Example icon-button with a menu">
                 <mat-icon>more_vert</mat-icon>
@@ -20,8 +23,7 @@
             <span>New subscription</span>
         </button>
         <ng-container *ngFor="let subscription of subscriptionsArr">
-            <button mat-menu-item
-                (click)="addToSubscription(subscription.displayName)">{{subscription.displayName}}</button>
+            <button mat-menu-item (click)="addToSubscription(subscription)">{{subscription.displayName}}</button>
         </ng-container>
     </mat-menu>
 
@@ -36,11 +38,11 @@
         <ng-container *ngFor="let subscription of subscriptionsArr">
             <tr class="subscription-header">
                 <td>{{subscription.displayName}}</td>
-                <td>{{subscription.publishInterval}}</td>
+                <td>{{subscription.publishingInterval}}</td>
                 <td>{{subscription.itemsCount}}</td>
                 <td>{{subscription.sequenceNumber}}</td>
                 <td>
-                    <button mat-flat-button (click)="modifySubscription(subscription.id)" class="d-inline">
+                    <button mat-flat-button (click)="modifySubscription(subscription)" class="d-inline">
                         <i class="h4 bi bi-pencil-square"></i>
                     </button>
 
@@ -50,7 +52,7 @@
                     </button>
 
                     <button mat-flat-button (click)="removeSubscription(subscription, $event)" class="d-inline">
-                        <mat-icon>delete</mat-icon>
+                        <i class="h4 bi bi-trash"></i>
                     </button>
                 </td>
             </tr>
@@ -61,12 +63,15 @@
                 <td>Sampling Interval</td>
                 <td></td>
             </tr>
-            <tr *ngFor="let monitoredItem of subscription.monitoringItems" [class]="'node'">
+            <tr *ngFor="let monitoredItem of subscription.monitoredItems" [class]="'node'">
                 <td>{{monitoredItem.startNodeId}}</td>
                 <td>{{monitoredItem.displayName}}</td>
                 <td class="node-value">{{monitoredItem.value}}</td>
                 <td>{{monitoredItem.samplingInterval}}</td>
                 <td class="node-action">
+                    <!-- <button mat-flat-button (click)="modifyMonitoredItem(subscription)" class="d-inline">
+                        <i class="h4 bi bi-pencil-square"></i>
+                    </button> -->
                     <button mat-flat-button
                         (click)="deleteMonitoringItem(subscription, monitoredItem.startNodeId, $event)">
                         <mat-icon>delete</mat-icon>

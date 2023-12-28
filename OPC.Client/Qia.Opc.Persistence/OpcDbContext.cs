@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Qia.Opc.Domain.Entities;
+using QIA.Opc.Domain.Entities;
 using System.Reflection;
 
 namespace Qia.Opc.Persistence
@@ -10,9 +11,10 @@ namespace Qia.Opc.Persistence
 		{
 		}
 
-		public DbSet<NodeReferenceEntity> NodesReferences { get; set; }
-		public DbSet<NodeValue> NodeConfigMonitorValues { get; set; }
 		public DbSet<SessionEntity> Sessions { get; set; }
+		public DbSet<SubscriptionConfig> SubscriptionConfigs { get; set; }
+		public DbSet<MonitoredItemConfig> MonitoredItemConfigs { get; set; }
+		public DbSet<MonitoredItemValue> MonitoredItemValues { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{

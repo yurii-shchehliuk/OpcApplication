@@ -1,14 +1,11 @@
 import { Component } from '@angular/core';
 import { Chart, ChartDataset, ChartConfiguration } from 'chart.js';
 import { Subscription } from 'rxjs';
-import { NodeValue, NodeReference } from '../models/nodeModels';
 import { NodeService } from '../services/node.service';
-import { SubscriptionService } from '../services/subscription.service';
-import { MatDialog } from '@angular/material/dialog';
 import { SessionEntity } from '../models/sessionModels';
-import { SessionState } from 'src/app/models/sessionModels';
 import { SessionAccessorService } from '../shared/session-accessor.service';
-import { SubscriptionParametersDialogComponent } from '../subscription/subscription-parameters-dialog/subscription-parameters-dialog.component';
+import { MonitoredItemConfig, MonitoredItemValue } from '../models/monitoredItem';
+import { SessionState } from '../models/enums';
 
 @Component({
   selector: 'app-node-chart',
@@ -17,7 +14,7 @@ import { SubscriptionParametersDialogComponent } from '../subscription/subscript
 })
 export class NodeChartComponent {
   chart: Chart;
-  nodeArray: NodeReference[] = [];
+  nodeArray: MonitoredItemConfig[] = [];
   datasets: ChartDataset[] = [];
   labels: string[] = [];
   sessionSource: SessionEntity = (<Partial<SessionEntity>>{}) as SessionEntity;
@@ -45,7 +42,7 @@ export class NodeChartComponent {
 
     // Fill up chart with data if not present ignore
     this.nodeService.getNodeValueObservable$.subscribe(
-      (NodeValue: NodeValue) => {
+      (NodeValue: MonitoredItemValue) => {
         this.pushEventToChartData(NodeValue);
       }
     );
@@ -126,12 +123,12 @@ export class NodeChartComponent {
     this.chart = new Chart(ctx, chartCfg);
   }
 
-  private pushEventToChartData(event: NodeValue): void {
-    let dsetItem = this.datasets.findIndex((c) => c.label === event.nodeId);
+  private pushEventToChartData(event: MonitoredItemValue): void {
+    let dsetItem = this.datasets.findIndex((c) => c.label === event.startNodeId);
 
     if (dsetItem === -1) {
       const newDataset: ChartDataset = {
-        label: event.nodeId,
+        label: event.startNodeId,
         data: [event.value],
 
         // data: [
@@ -149,8 +146,8 @@ export class NodeChartComponent {
       this.datasets[dsetItem].data.push(event.value);
     }
 
-    if (this.labels.findIndex((c) => c === event.storeTime) === -1) {
-      this.labels.push(event.storeTime);
+    if (this.labels.findIndex((c) => c === event.createdAt) === -1) {
+      this.labels.push(event.createdAt);
     }
 
     //TODO: the problem is that labels are adding as a stack and chart is with step one

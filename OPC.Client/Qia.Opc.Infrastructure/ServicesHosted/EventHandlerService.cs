@@ -3,11 +3,6 @@ using Microsoft.Extensions.Hosting;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Infrastructure.Application;
 using Qia.Opc.OPCUA.Connector.Managers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace QIA.Opc.Infrastructure.ServicesHosted
 {

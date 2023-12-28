@@ -1,9 +1,8 @@
-﻿using MediatR;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Qia.Opc.Domain.Core;
 using Qia.Opc.Domain.Entities;
-using Qia.Opc.Infrastructure.Application;
-using Qia.Opc.OPCUA.Connector.Entities;
-using QIA.Opc.Domain.Request;
+using QIA.Opc.Domain.Requests;
+using QIA.Opc.Domain.Responses;
 using QIA.Opc.Infrastructure.Services.OPCUA;
 
 namespace QIA.Opc.API.Controllers
@@ -11,87 +10,115 @@ namespace QIA.Opc.API.Controllers
 	public class SessionController : BaseController
 	{
 		private readonly SessionService sessionService;
-		private readonly IMediator mediator;
 
-		public SessionController(SessionService sessionService, IMediator mediator)
+		public SessionController(SessionService sessionService)
 		{
 			this.sessionService = sessionService;
-			this.mediator = mediator;
 		}
 
-		[HttpPost("connect")]
-		public async Task<ActionResult<SessionEntity>> ConnectToEndpoint([FromBody] SessionRequest request)
+		[HttpGet("list")]
+		public async Task<ActionResult<IEnumerable<SessionResponse>>> SavedSessions()
 		{
-			// reconnect
-			var session = sessionService.GetSession(request.SessionId);
-			if (session != null && request.Name == session.Name && session.State == Qia.Opc.Domain.Entities.Enums.SessionState.Connected)
+			try
 			{
-				return Ok(session);
-			}
+				var sessionListResponse = await sessionService.GetSessionsAsync();
 
-			// create new
-			var newSession = await sessionService.CreateUniqueSessionAsync(request);
-			if (newSession == null)
-			{
-				await mediator.Publish(new EventMediatorCommand(new Qia.Opc.Domain.Common.EventData
-				{
-					LogCategory = Qia.Opc.Domain.Entities.Enums.LogCategory.Error,
-					Message = "Cannot connect to the provided URL",
-					Title = "Session exception"
-				}));
-				return BadRequest(StatusCodes.Status418ImATeapot);
+				return HandleResponse(sessionListResponse);
 			}
-			return Ok(newSession);
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("{0}", ex);
+				throw;
+			}
 		}
 
 		[HttpPost("create")]
-		public async Task<ActionResult<SessionEntity>> CreateEndpoint([FromBody] SessionRequest request)
+		public async Task<ActionResult<SessionResponse>> CreateEndpoint([FromBody] SessionRequest request)
 		{
-			var session = await sessionService.CreateEndpointAsync(request);
-			return Ok(session);
+			try
+			{
+				var sessionResponse = await sessionService.CreateEndpointAsync(request);
+
+				return HandleResponse(sessionResponse);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("{0}", ex);
+				throw;
+			}
 		}
 
-		[HttpPost("disconnect")]
-		public async Task<IActionResult> Disconnect([FromBody] SessionRequest request)
+		[HttpPost("connect")]
+		public ActionResult<SessionResponse> ConnectToEndpoint([FromBody] SessionRequest request)
 		{
-			if (request.SessionId != null)
-				await sessionService.Disconnect(request);
+			try
+			{
+				// reconnect
+				var currentSessionResponse = sessionService.GetSessionIfActive(request.SessionNodeId);
 
-			return Ok();
+				if (currentSessionResponse.IsSuccess)
+				{
+					return HandleResponse(currentSessionResponse);
+				}
+
+				// create new
+				var newSessionResponse = sessionService.CreateUniqueSessionAsync(request);
+
+				return HandleResponse(newSessionResponse);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("{0}", ex);
+				throw;
+			}
+		}
+
+		[HttpDelete("disconnect")]
+		public IActionResult Disconnect([FromQuery] string sessionNodeId)
+		{
+			try
+			{
+				var response = sessionService.Disconnect(sessionNodeId);
+
+				return HandleResponse(response);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("{0}", ex);
+				throw;
+			}
 		}
 
 		[HttpPut("update")]
-		public async Task<ActionResult<SessionEntity>> UpdateEndpoint([FromBody] SessionEntity request)
+		public async Task<ActionResult<SessionResponse>> UpdateEndpoint([FromBody] SessionRequest request)
 		{
-			await sessionService.UpdateEndpointAsync(request);
-			return Ok();
+			try
+			{
+				var updatedSessionResponse = await sessionService.UpdateEndpointAsync(request);
+
+				return HandleResponse(updatedSessionResponse);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("{0}", ex);
+				throw;
+			}
 		}
 
-		[HttpDelete("{sessionName}")]
-		public async Task<IActionResult> DeleteSession(string sessionName)
+		[HttpDelete("delete")]
+		public async Task<IActionResult> DeleteSession([FromQuery] string sessionNodeId)
 		{
-			await sessionService.DeleteSessionAsync(sessionName);
-			return Ok();
-		}
+			try
+			{
+				var response = await sessionService.DeleteSessionAsync(sessionNodeId);
 
-		[HttpGet("activeSessions")]
-		public ActionResult<IEnumerable<SessionEntity>> ActiveSessions()
-		{
-			var sessionList = sessionService.GetActiveSessions();
-			if (sessionList != null)
-				return Ok(sessionList);
-			else
-				return NotFound();
-		}
-
-		[HttpGet("savedSessions")]
-		public async Task<ActionResult<IEnumerable<SessionEntity>>> SavedSessions()
-		{
-			var sessionList = await sessionService.GetSavedSessionsAsync();
-			if (sessionList != null)
-				return Ok(sessionList);
-			else
-				return NotFound();
+				return HandleResponse(response);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("{0}", ex);
+				throw;
+			}
 		}
 	}
 }

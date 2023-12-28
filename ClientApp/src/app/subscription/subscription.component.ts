@@ -1,15 +1,17 @@
 import { Component, OnInit } from '@angular/core';
 import { CommunicationService } from '../services/communication.service';
-import {
-  SubscriptionEntity,
-  SubscriptionParameters,
-} from '../models/subscriptionModels';
-import { NodeReference } from '../models/nodeModels';
 import { SubscriptionService } from '../services/subscription.service';
 import { NodeService } from '../services/node.service';
 import { MatDialog } from '@angular/material/dialog';
 import { SubscriptionParametersDialogComponent } from './subscription-parameters-dialog/subscription-parameters-dialog.component';
 import { SessionAccessorService } from '../shared/session-accessor.service';
+import { MonitoredItemConfig } from '../models/monitoredItem';
+import {
+  SubscriptionConfig,
+  SubscriptionValue,
+} from '../models/subscriptionModels';
+import { MonitoredItemService } from '../services/monitored-item.service';
+import { NotificationService } from '../shared/notification.service';
 
 @Component({
   selector: 'app-subscription',
@@ -17,13 +19,17 @@ import { SessionAccessorService } from '../shared/session-accessor.service';
   styleUrls: ['./subscription.component.scss'],
 })
 export class SubscriptionComponent implements OnInit {
-  subscriptionsArr: SubscriptionEntity[] = [];
-  newNode: NodeReference = (<Partial<NodeReference>>{}) as NodeReference;
+  subscriptionsArr: SubscriptionValue[] = [];
+  newNode: MonitoredItemConfig = (<
+    Partial<MonitoredItemConfig>
+  >{}) as MonitoredItemConfig;
 
   constructor(
-    private subscriptionService: SubscriptionService,
     private sessionAccessor: SessionAccessorService,
+    private subscriptionService: SubscriptionService,
     private nodeService: NodeService,
+    private monitoredItemSvs: MonitoredItemService,
+    private notificationService: NotificationService,
     public dialog: MatDialog
   ) {
     this.sessionAccessor.currentSession$.subscribe((res) => {
@@ -33,9 +39,9 @@ export class SubscriptionComponent implements OnInit {
 
   ngOnInit(): void {
     this.subscriptionService.newSubscription$.subscribe({
-      next: (value: SubscriptionEntity) => {
+      next: (value: SubscriptionValue) => {
         const index = this.subscriptionsArr.findIndex(
-          (sub) => sub.id === value.id
+          (sub) => sub.opcUaId === value.opcUaId
         );
         if (index !== -1) {
           this.subscriptionsArr[index] = value;
@@ -50,86 +56,103 @@ export class SubscriptionComponent implements OnInit {
   }
 
   addNewSubscription() {
-    if (!this.newNode.nodeId) return;
+    if (!this.newNode.startNodeId) return;
 
     const subscriptionDialog = this.dialog.open(
       SubscriptionParametersDialogComponent,
       {
-        data: JSON.parse(JSON.stringify(this.newNode.nodeId)),
+        data: {
+          nodeId: JSON.parse(JSON.stringify(this.newNode.startNodeId)),
+          subscriptionParameters: (<
+            Partial<SubscriptionConfig>
+          >{}) as SubscriptionConfig,
+        },
       }
     );
     subscriptionDialog.afterClosed().subscribe((result) => {
-      this.newNode.nodeId = '';
+      this.newNode.startNodeId = '';
     });
   }
 
-  addToSubscription(subscriptionName: string) {
-    if (!this.newNode.nodeId) return;
+  modifySubscription(subscription: SubscriptionValue) {
+    console.log('modifySubscription');
 
-    this.subscriptionService.addToSubscription(
-      subscriptionName,
-      this.newNode.nodeId
+    const subscriptionDialog = this.dialog.open(
+      SubscriptionParametersDialogComponent,
+      {
+        data: {
+          nodeId: '',
+          subscription: subscription,
+        },
+      }
+    );
+    subscriptionDialog.afterClosed().subscribe((result) => {
+      this.newNode.startNodeId = '';
+    });
+  }
+
+  addToSubscription(subscription: SubscriptionValue) {
+    if (!this.newNode.startNodeId) return;
+    if (!subscription.publishingEnabled) {
+      this.notificationService.showWarning('Subscription is not active', '');
+      return;
+    }
+    this.monitoredItemSvs.addToSubscription(
+      subscription,
+      this.newNode.startNodeId
     );
   }
 
   deleteMonitoringItem(
-    subscription: SubscriptionEntity,
+    subscription: SubscriptionValue,
     nodeId: string,
     event: any
   ) {
     console.log('deleteMonitoringItem');
 
-    this.subscriptionService.deleteMonitoringItem(subscription.id, nodeId);
+    this.monitoredItemSvs.deleteMonitoredItem(subscription.opcUaId, nodeId);
 
-    let nodeIndex = subscription.monitoringItems.findIndex(
+    let nodeIndex = subscription.monitoredItems.findIndex(
       (c) => c.startNodeId == nodeId
     );
 
-    subscription.monitoringItems.splice(nodeIndex, 1);
+    subscription.monitoredItems.splice(nodeIndex, 1);
     this.nodeService.nodeToRemove$ = nodeId;
     event.stopPropagation();
     event.preventDefault();
   }
 
-  removeSubscription(subscription: SubscriptionEntity, event: any) {
+  removeSubscription(subscription: SubscriptionValue, event: any) {
     console.log('removeSubscription');
-    this.subscriptionService.deleteSubs(subscription.id.toString());
-    this.subscriptionService.subscriptionToRemove$ = subscription.id.toString();
+    this.subscriptionService.deleteSubs(subscription).subscribe({
+      next: () => {},
+    });
+    this.subscriptionService.subscriptionToRemove$ =
+      subscription.opcUaId.toString();
     let index = this.subscriptionsArr.findIndex(
-      (c) => c.id === subscription.id
+      (c) => c.opcUaId === subscription.opcUaId
     );
 
-    subscription.monitoringItems.map((item) => {
+    subscription.monitoredItems.map((item) => {
       this.nodeService.nodeToRemove$ = item.startNodeId;
     });
 
     this.subscriptionsArr.splice(index, 1);
   }
 
-  modifySubscription(subscriptionId: number) {
-    console.log('modifySubscription');
-    if (!this.newNode.nodeId) return;
-
-    const subscriptionDialog = this.dialog.open(
-      SubscriptionParametersDialogComponent,
-      {
-        data: JSON.parse(JSON.stringify(this.newNode.nodeId)),
-      }
-    );
-    subscriptionDialog.afterClosed().subscribe((result) => {
-      this.newNode.nodeId = '';
-    });
-  }
-
-  setPublishingMode(subscription: SubscriptionEntity, event: any) {
+  setPublishingMode(subscription: SubscriptionValue, event: any) {
     console.log('setPublishingMode');
     event.stopPropagation();
     event.preventDefault();
-
+    // update model
     subscription.publishingEnabled = !subscription.publishingEnabled;
-    this.subscriptionService.setPublishingMode(
-      subscription.id,
-      subscription.publishingEnabled
-    );
+    this.subscriptionService.setPublishingMode(subscription);
+    //unexpected:
+    console.log(subscription);
+
+    if (subscription.opcUaId == 0) {
+      let index = this.subscriptionsArr.findIndex((c) => c === subscription);
+      this.subscriptionsArr.splice(index, 1);
+    }
   }
 }

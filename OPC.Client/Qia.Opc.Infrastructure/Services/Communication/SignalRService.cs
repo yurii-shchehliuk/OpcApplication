@@ -1,6 +1,4 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Qia.Opc.Domain.Common;
-using Qia.Opc.Domain.Core;
 
 namespace QIA.Opc.Infrastructure.Services.Communication
 {

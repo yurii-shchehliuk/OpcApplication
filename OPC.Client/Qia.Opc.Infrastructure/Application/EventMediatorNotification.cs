@@ -3,11 +3,6 @@ using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
 using Qia.Opc.OPCUA.Connector.Managers;
 using QIA.Opc.Infrastructure.Services.Communication;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Qia.Opc.Infrastructure.Application
 {
@@ -35,8 +30,10 @@ namespace Qia.Opc.Infrastructure.Application
 		{
 			try
 			{
-				await signalRService.SendEventMessageAsync(notification.EventData,
-					sessionManager.CurrentSession.Name ?? "All");
+				LoggerManager.Logger.Information($"Info: {0}", notification.EventData.Message);
+
+				//await signalRService.SendEventMessageAsync(notification.EventData,
+				//	sessionManager.CurrentSession.Name ?? "All");
 			}
 			catch (Exception ex)
 			{

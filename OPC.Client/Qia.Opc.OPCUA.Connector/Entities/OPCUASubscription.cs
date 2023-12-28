@@ -4,10 +4,7 @@ namespace Qia.Opc.OPCUA.Connector.Entities
 {
 	public class OPCUASubscription
 	{
-		public string SubscriptionId { get; set; }
-		public ISession Session { get; set; }
-		public Subscription UaSubscription { get; set; }
+		public string SubscriptionGuidId { get; set; }
+		public Subscription Subscription { get; set; }
 	}
-
-
 }

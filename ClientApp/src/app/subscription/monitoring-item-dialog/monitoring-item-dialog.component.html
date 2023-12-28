@@ -1,0 +1,46 @@
+<h1 mat-dialog-title>Monitored Item</h1>
+<mat-dialog-content [formGroup]="monitoredItemForm" class="monitoredItemForm" (ngSubmit)="onSubmit()">
+    <mat-form-field>
+        <mat-label>Display Name</mat-label>
+        <input matInput type="text" formControlName="displayName">
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>Node Id</mat-label>
+        <input matInput type="text" formControlName="startNodeId" readonly>
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>Sampling Interval</mat-label>
+        <input matInput type="number" min="0" max="1000000000" step="1000" formControlName="samplingInterval">
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>Queue Size</mat-label>
+        <input matInput type="number" min="0" max="1000" formControlName="queueSize">
+    </mat-form-field>
+    <mat-checkbox formControlName="discardOldest">
+        <mat-label>Discard Oldest</mat-label>
+    </mat-checkbox>
+    <mat-form-field>
+        <mat-label>Index Range</mat-label>
+        <input matInput type="text" formControlName="indexRange" readonly>
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>Monitoring Mode</mat-label>
+        <input matInput type="text" formControlName="monitoringMode" readonly>
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>Attribute Id</mat-label>
+        <input matInput type="text" formControlName="attributeId" readonly>
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>Node Class</mat-label>
+        <input matInput type="text" formControlName="nodeClass" readonly>
+    </mat-form-field>
+    <mat-form-field>
+        <mat-label>Relative Path</mat-label>
+        <input matInput type="text" formControlName="relativePath" readonly>
+    </mat-form-field>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+    <button mat-flat-button mat-dialog-close>Cancel</button>
+    <button mat-flat-button type="submit" mat-dialog-close>Ok</button>
+</mat-dialog-actions>

@@ -1,12 +1,10 @@
-﻿using Azure;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Qia.Opc.Domain.Entities;
 using QIA.Opc.Infrastructure.Services.OPCUA;
 using System.Text;
 
 namespace QIA.Opc.API.Controllers
 {
-
 	public class TreeController : BaseController
 	{
 		private readonly TreeService treeService;
@@ -17,7 +15,7 @@ namespace QIA.Opc.API.Controllers
 		}
 
 		[HttpPatch("childrens")]
-		public ActionResult<TreeNode> TreeChildrens([FromBody] TreeNode treeItem)
+		public ActionResult<TreeNode> TreeChildrens([FromQuery] string sessionNodeId, [FromBody] TreeNode treeItem)
 		{
 			if (treeItem.Children != null && treeItem.Children.Count > 0)
 			{
@@ -25,18 +23,19 @@ namespace QIA.Opc.API.Controllers
 				return Ok(treeItem.Children);
 			}
 
-			var result = treeService.BrowseChild(treeItem);
-			return Ok(result.Children);
+			var result = treeService.BrowseChild(sessionNodeId, treeItem);
+
+			return HandleResponse(result);
 		}
 
 		[HttpGet("full")]
-		public async Task<IActionResult> BrowseTree()
+		public async Task<IActionResult> DownloadFullTree([FromQuery] string sessionNodeId)
 		{
-			var treeContainer = await treeService.GetFullGraphAsync();
-			var byteArray = Encoding.UTF8.GetBytes(treeContainer.Data);
+			var treeResponse = await treeService.GetFullGraphAsync(sessionNodeId);
+			var byteArray = Encoding.UTF8.GetBytes(treeResponse.Value.Data);
 			var stream = new MemoryStream(byteArray);
 
-			return File(stream, "text/plain", treeContainer.SourceName + ".txt");
+			return File(stream, "text/plain", treeResponse.Value.SourceName + ".txt");
 		}
 	}
 }

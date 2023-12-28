@@ -1,91 +1,169 @@
 ﻿using Opc.Ua;
 using Opc.Ua.Client;
+using Qia.Opc.Domain.Core;
+using Qia.Opc.Domain.Entities;
+using Qia.Opc.OPCUA.Connector.Managers;
+using QIA.Opc.Domain.Requests;
 
-namespace Qia.Opc.OPCUA.Connector.Managers
+namespace QIA.Opc.OPCUA.Connector.Managers
 {
 	public class MonitoredItemManager
 	{
-		private readonly SessionManager _sessionManager;
+		private readonly SessionManager sessionManager;
 
 		public MonitoredItemManager(SessionManager sessionManager)
 		{
-			_sessionManager = sessionManager;
+			this.sessionManager = sessionManager;
 		}
 
-		public MonitoredItem CreateMonitoredItem(string nodeId)
+		public MonitoredItem AddToSubscription(string sessionGuidId, uint subscriptionId, string nodeId)
 		{
-			var opcSession = _sessionManager.CurrentSession;
-			var session = opcSession.Session as Session;
+			sessionManager.TryGetSession(sessionGuidId, out var session);
 
-			if (session == null)
-			{
-				throw new ArgumentException("Invalid session ID.");
-			}
+			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
+			if (subscription == null) return null;
 
+			return AddMonitoredItem(session.Session, subscription, nodeId);
+		}
 
-			var desc = new BrowseDescription
-			{
-				NodeId = NodeId.Parse(nodeId),
-				BrowseDirection = BrowseDirection.Forward,
-				IncludeSubtypes = true,
-				NodeClassMask = (uint)NodeClass.Variable | (uint)NodeClass.Object,
-				ResultMask = (uint)BrowseResultMask.All
-			};
+		public MonitoredItem AddToSubscription(string sessionGuidId, Subscription subscription, string nodeId)
+		{
+			sessionManager.TryGetSession(sessionGuidId, out var session);
 
-			var node = session.Browse(null, null, 0u, new BrowseDescriptionCollection() { desc }, out var results, out var diagnosticInfos);
+			return AddMonitoredItem(session.Session, subscription, nodeId);
+		}
 
-			if (node == null)
-			{
-				throw new ArgumentException($"Node with ID {nodeId} not found.");
-			}
+		public MonitoredItem GetMonitoringItem(string sessionGuidId, uint subscriptionId, string nodeId)
+		{
+			sessionManager.TryGetSession(sessionGuidId, out var session);
+			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
+			if (subscription == null) return null;
 
-			var subscription = new Subscription(session.DefaultSubscription);
-			subscription.Create();
+			var monItem = subscription.MonitoredItems.FirstOrDefault(c => c.StartNodeId.ToString() == nodeId);
 
-			var monitoredItem = new MonitoredItem(subscription.DefaultItem)
-			{
-				//StartNodeId = node.NodeId,
-				//AttributeId = Attributes.Value,
-				//DisplayName = node.DisplayName.Text,
-				//SamplingInterval = 1000,
+			return monItem;
+		}
 
-			};
-			monitoredItem.Notification += OnMonitoredItemNotification;
+		public bool DeleteMonitoringItem(string sessionGuidId, uint subscriptionId, string nodeId)
+		{
+			sessionManager.TryGetSession(sessionGuidId, out var session);
+			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
+			if (subscription == null) return false;
 
-			subscription.AddItem(monitoredItem);
+			var monItem = subscription.MonitoredItems.FirstOrDefault(c => c.StartNodeId.ToString() == nodeId);
+			subscription.RemoveItem(monItem);
 			subscription.ApplyChanges();
-			session.AddSubscription(subscription);
+			return true;
 
-			return monitoredItem;
 		}
 
-		public void DeleteMonitoredItem(uint subscriptionId, uint monitoredItemId)
+		public bool UpdateMonitoredItem(string sessionGuidId, MonitoredItemRequest updatedItem, uint subscriptionId)
 		{
-			var session = _sessionManager.CurrentSession.Session;
+			sessionManager.TryGetSession(sessionGuidId, out var session);
 
-			Subscription subscription = session.Subscriptions.FirstOrDefault(c => c.Id == subscriptionId);
+			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
+			if (subscription == null) return false;
 
-			MonitoredItem item = subscription.FindItemByClientHandle(monitoredItemId);
-			if (item != null)
+			var monItem = subscription.MonitoredItems.FirstOrDefault(c => c.StartNodeId.ToString() == updatedItem.StartNodeId);
+
+			if (monItem == null) return false;
+
+			monItem.DisplayName = updatedItem.DisplayName;
+			monItem.SamplingInterval = updatedItem.SamplingInterval;
+			monItem.QueueSize = updatedItem.QueueSize;
+			monItem.DiscardOldest = updatedItem.DiscardOldest;
+			// readonly
+			//monItem.StartNodeId = updatedItem.StartNodeId;
+			//monItem.RelativePath = updatedItem.RelativePath;
+			//monItem.NodeClass = updatedItem.NodeClass;
+			//monItem.AttributeId = updatedItem.AttributeId;
+			//monItem.IndexRange = updatedItem.IndexRange;
+			//monItem.MonitoringMode = updatedItem.MonitoringMode;
+
+			subscription.ApplyChanges();
+
+			return true;
+		}
+
+		private MonitoredItem AddMonitoredItem(Session session, Subscription subscription, string nodeId)
+		{
+			try
 			{
-				subscription.RemoveItem(item);
+				var opcNodeId = new NodeId(nodeId);
+				var desc = new BrowseDescription
+				{
+					NodeId = opcNodeId,
+					BrowseDirection = BrowseDirection.Forward,
+					IncludeSubtypes = true,
+					NodeClassMask = (uint)NodeClass.Variable | (uint)NodeClass.Object,
+					ResultMask = (uint)BrowseResultMask.All
+				};
+
+				var nodeReferenceDescription = session.Browse(null, null, 0u, new BrowseDescriptionCollection() { desc }, out var results, out var diagnosticInfos);
+
+				if (nodeReferenceDescription == null)
+				{
+					LoggerManager.Logger.Error($"Node with ID {nodeId} not found.");
+					return null;
+				}
+				var nodeData = FindNodeOnServer(session, nodeId);
+
+				MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem)
+				{
+					DisplayName = nodeData.DisplayName.ToString(),
+					StartNodeId = opcNodeId,
+					NodeClass = nodeData.NodeClass,
+					AttributeId = Attributes.Value,
+					SamplingInterval = 0,
+					QueueSize = 1,
+					DiscardOldest = true,
+				};
+
+				// add condition fields to any event filter.
+				EventFilter filter = monitoredItem.Filter as EventFilter;
+
+				if (filter != null)
+				{
+					monitoredItem.AttributeId = Attributes.EventNotifier;
+					monitoredItem.QueueSize = 0;
+				}
+
+				//monitoredItem.Notification += (OnMonitoredItemNotification);
+
+				subscription.AddItem(monitoredItem);
 				subscription.ApplyChanges();
-			}
-		}
+				LoggerManager.Logger.Information($"| {monitoredItem.StartNodeId} added to monitoring");
 
-		public IEnumerable<MonitoredItem> GetAllMonitoredItems()
-		{
-			var session = _sessionManager.CurrentSession;
-			var items = new List<MonitoredItem>();
-			foreach (var subscription in session.Session.Subscriptions)
+				return monitoredItem;
+			}
+			catch (Exception ex)
 			{
-				items.AddRange(subscription.MonitoredItems);
+				LoggerManager.Logger.Error("Failed to add to monitoring: {0}", ex.Message);
+				throw;
 			}
-			return items;
 		}
 
-		private void OnMonitoredItemNotification(MonitoredItem item, MonitoredItemNotificationEventArgs e)
+		private Node FindNodeOnServer(Session session, string nodeId)
 		{
+
+			NodeId nodeIdToSearch = new NodeId(nodeId);
+
+			Node node = session.ReadNode(nodeIdToSearch);
+
+			return node;
+		}
+
+		private DataValue ReadValue(Session session, string nodeId)
+		{
+			try
+			{
+				DataValue nodeValue = session.ReadValue(nodeId);
+				return nodeValue;
+			}
+			catch (Exception ex)
+			{
+				throw ex;
+			}
 		}
 	}
 }

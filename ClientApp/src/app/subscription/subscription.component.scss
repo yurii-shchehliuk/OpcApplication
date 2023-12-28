@@ -17,8 +17,11 @@ table {
   .subscription-header {
     border-top: 1px solid;
   }
-  
+
   .node {
-    // transform: translateX(-5em);
+    // background-color: rgb(165 165 165 / 4%);
+    td {
+      border-right-width: 1px;
+    }
   }
 }

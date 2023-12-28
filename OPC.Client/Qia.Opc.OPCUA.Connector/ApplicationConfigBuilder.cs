@@ -1,8 +1,8 @@
 ﻿using Opc.Ua;
 using Opc.Ua.Configuration;
-using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
 using System.Diagnostics;
+using System.Net;
 using System.Reflection;
 
 namespace Qia.Opc.OPCUA.Connector
@@ -27,7 +27,7 @@ namespace Qia.Opc.OPCUA.Connector
 			ApplicationConfiguration = new ApplicationConfiguration()
 			{
 				ApplicationName = "QiagenOpcClient",
-				ApplicationUri = Utils.Format(@"urn:{0}:QiagenOpcClient", System.Net.Dns.GetHostName()),
+				ApplicationUri = Utils.Format(@"urn:{0}:QiagenOpcClient", Dns.GetHostName()),
 				ApplicationType = ApplicationType.Client,
 
 				TransportConfigurations = new TransportConfigurationCollection(),

@@ -1024,7 +1024,7 @@ namespace Qia.Opc.OPCUA.Connector
 			}
 
 			return true;
-		} 
+		}
 		#endregion
 
 		public bool CompareDistinguishedName(string dn1, string dn2)

@@ -4,7 +4,6 @@ using Opc.Ua.Client;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
 using Qia.Opc.Domain.Entities;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Qia.Opc.OPCUA.Connector.Managers
 {
@@ -14,7 +13,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		private readonly SessionManager sessionManager;
 		private readonly IMapper mapper;
 		// events
-		public delegate Task TreeServiceHandler(object sender, Domain.Entities.NodeReferenceEntity node);
+		public delegate Task TreeServiceHandler(object sender, Domain.Entities.MonitoredItemConfig node);
 		public event TreeServiceHandler NodeFound; //deprecated
 
 		public TreeManager(SessionManager sessionManager, IMapper mapper)
@@ -26,11 +25,12 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		/// <summary>
 		/// Browse server's data tree
 		/// </summary>
-		public async Task<TreeNode> BrowseTreeAsync()
+		public async Task<TreeNode> BrowseTreeAsync(string sessionGuidId)
 		{
-			var session = sessionManager.CurrentSession.Session;
-			LoggerManager.Logger.Information($"Parsing full tree started for {sessionManager.CurrentSession.Name}");
-			session.Browse(null, null, ObjectIds.ObjectsFolder, 0u, BrowseDirection.Forward,
+			sessionManager.TryGetSession(sessionGuidId, out var session);
+
+			LoggerManager.Logger.Information($"Parsing full tree started for {session.Name}");
+			session.Session.Browse(null, null, ObjectIds.ObjectsFolder, 0u, BrowseDirection.Forward,
 							ReferenceTypeIds.HierarchicalReferences, true,
 							(uint)NodeClass.Variable | (uint)NodeClass.Object | (uint)NodeClass.Method,
 							out _, out ReferenceDescriptionCollection nextRefs);
@@ -38,12 +38,12 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			var rootNode = new TreeNode()
 			{
 				DisplayName = "ROOT",
-				NodeId = "0",
+				StartNodeId = "0",
 			};
 
-			await ProcessNodesAsync(nextRefs, rootNode, session, 1);
+			await ProcessNodesAsync(nextRefs, rootNode, session.Session, 1);
 
-			LoggerManager.Logger.Information($"Parsing full tree compleated for {sessionManager.CurrentSession.Name}");
+			LoggerManager.Logger.Information($"Parsing full tree compleated for {session.Name}");
 			return rootNode;
 		}
 
@@ -52,7 +52,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			foreach (var node in nodes)
 			{
 				string nodeId = node.NodeId.Identifier.ToString();
-				if (parent.Children.Any(c => c.NodeId == nodeId))
+				if (parent.Children.Any(c => c.StartNodeId == nodeId))
 				{
 					continue;
 				}
@@ -60,7 +60,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 				var treeNode = new TreeNode()
 				{
 					DisplayName = node.DisplayName.Text,
-					NodeId = nodeId,
+					StartNodeId = nodeId,
 				};
 
 				parent.Children.Add(treeNode);
@@ -77,10 +77,10 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 		}
 
-		public TreeNode BrowseChildren(TreeNode treeNode)
+		public TreeNode BrowseChildren(string sessionGuidId, TreeNode treeNode)
 		{
-			var session = sessionManager.CurrentSession.Session;
-			Browser browser = new Browser(session)
+			sessionManager.TryGetSession(sessionGuidId, out var session);
+			Browser browser = new Browser(session.Session)
 			{
 				BrowseDirection = BrowseDirection.Forward,
 				ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
@@ -90,7 +90,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			};
 
 			ReferenceDescription reference = null;
-			if (treeNode.NodeId.TryParseNodeId(out NodeId nodeId))
+			if (treeNode.StartNodeId.TryParseNodeId(out NodeId nodeId))
 			{
 				//INode node = browser.Session.NodeCache.Find(nodeId);
 				reference = new ReferenceDescription()
@@ -130,11 +130,11 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 				var treeItem = new TreeNode()
 				{
 					DisplayName = item.DisplayName.ToString(),
-					NodeId = item.NodeId.ToString(),
+					StartNodeId = item.NodeId.ToString(),
 					NodeClass = item.NodeClass,
 				};
 
-				if (!treeNode.Children.Any(c => c.NodeId == item.NodeId.ToString()))
+				if (!treeNode.Children.Any(c => c.StartNodeId == item.NodeId.ToString()))
 				{
 					treeNode.Children.Add(treeItem);
 				}

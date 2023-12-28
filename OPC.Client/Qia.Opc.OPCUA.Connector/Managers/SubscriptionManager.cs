@@ -2,15 +2,19 @@
 using Opc.Ua.Client;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
-using Qia.Opc.Domain.Entities;
-using QIA.Opc.Domain.Request;
+using Qia.Opc.OPCUA.Connector.Entities;
+using QIA.Opc.Domain.Entities;
+using QIA.Opc.Domain.Requests;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 
 namespace Qia.Opc.OPCUA.Connector.Managers
 {
 	public class SubscriptionManager
 	{
+		//const	
+		private const string subscriptionKey = "subscriptionId=";
 		private readonly SessionManager sessionManager;
-		private readonly NodeManager nodeManager;
 
 		//delegates
 		public delegate void SessionEventHandler(ISession session, NotificationEventArgs e);
@@ -22,50 +26,56 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		private NotificationEventHandler m_SessionNotification = null;
 		private PublishStateChangedEventHandler m_PublishStatusChanged = null;
 		private SubscriptionStateChangedEventHandler m_SubscriptionStateChanged = null;
+		/// <summary>
+		/// used to refer to database entity only <sessionId+subscriptionId, subscriptionGuidId>
+		/// </summary>
+		private ConcurrentDictionary<string, string> _subscriptions = new ConcurrentDictionary<string, string>();
 
-		public SubscriptionManager(SessionManager sessionManager, NodeManager nodeManager)
+		public SubscriptionManager(SessionManager sessionManager)
 		{
 			this.sessionManager = sessionManager;
-			this.nodeManager = nodeManager;
 
 			m_SessionNotification = new NotificationEventHandler(Session_NotificationAsync);
 			m_PublishStatusChanged = new PublishStateChangedEventHandler(Subscription_PublishStatusChanged);
 			m_SubscriptionStateChanged = new SubscriptionStateChangedEventHandler(Subscription_StateChanged);
 		}
 
-		public bool DeleteSubscription(uint subscriptionId)
+		public Subscription Subscribe(string sessionNodeId, SubscriptionRequest subsParams, out OPCUASession session)
 		{
-			var session = sessionManager.CurrentSession.Session;
-			Subscription subscription = session.Subscriptions.FirstOrDefault(c => c.Id == subscriptionId);
+			sessionManager.TryGetSession(sessionNodeId, out session);
+			var subscription = CreateSubscription(session.Session, subsParams);
+
+			_subscriptions.TryAdd(sessionNodeId + subscriptionKey + subscription.Id.ToString(), subsParams.SubscriptionGuidId);
+
+			return subscription;
+		}
+
+		public bool DeleteSubscription(string sessionNodeId, uint subscriptionId, out string subscriptionGuidId)
+		{
+			subscriptionGuidId = "";
+			sessionManager.TryGetSession(sessionNodeId, out var session);
+			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(c => c.Id == subscriptionId);
 
 			if (subscription != null)
 			{
-				session.RemoveSubscription(subscription);
+
+				session.Session.RemoveSubscription(subscription);
 				subscription.Delete(true);
+				_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + subscriptionId.ToString(), out subscriptionGuidId);
+				_subscriptions.TryRemove(sessionNodeId + subscriptionKey + subscriptionId.ToString(), out _);
 				return true;
 			}
 
 			return false;
 		}
 
-		public IEnumerable<Subscription> GetActiveSubscriptions()
+		public bool Modify(string sessionNodeId, SubscriptionRequest subsParams, out string subscriptionGuidId)
 		{
-			return sessionManager.CurrentSession.Session.Subscriptions;
-		}
+			subscriptionGuidId = "";
+			sessionManager.TryGetSession(sessionNodeId, out var session);
 
-		public uint Subscribe(SubscriptionParameters subsParams, string nodeId)
-		{
-			var subscription = CreateSubscription(subsParams);
-			AddMonitoredItem(subscription, nodeId);
-			return subscription.Id;
-		}
-
-		public void Modify(SubscriptionParameters subsParams, uint subscriptionId)
-		{
-			var session = sessionManager.CurrentSession.Session;
-
-			Subscription subscription = session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
-			if (subscription == null) return;
+			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subsParams.OpcUaId);
+			if (subscription == null) return false;
 
 			subscription.DisplayName = subsParams.DisplayName;
 			subscription.PublishingInterval = subsParams.PublishingInterval;
@@ -81,44 +91,71 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 
 			subscription.Modify();
+			_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + subsParams.OpcUaId.ToString(), out subscriptionGuidId);
+
+			return true;
 		}
 
-		public void AddToSubscription(string subscriptionName, string nodeId)
+		public bool SetPublishingMode(string sessionNodeId, uint subscriptionId, bool enable)
 		{
-			var session = sessionManager.CurrentSession.Session;
+			sessionManager.TryGetSession(sessionNodeId, out var session);
 
-			Subscription subscription = session.Subscriptions.FirstOrDefault(s => s.DisplayName == subscriptionName);
-			if (subscription == null) return;
-			AddMonitoredItem(subscription, nodeId);
+			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
+
+			if (subscription == null)
+				return false;
+
+			subscription.SetPublishingMode(enable);
+			return true;
 		}
 
-
-		public void SetPublishingMode(string subscriptionId, bool enable)
+		public IEnumerable<OPCUASubscription> GetActiveOpcSubscriptions(string sessionNodeId, out string sessionGuidId)
 		{
-			var session = sessionManager.CurrentSession.Session;
-
-			Subscription subscription = session.Subscriptions.FirstOrDefault(s => s.Id.ToString() == subscriptionId);
-
-			if (subscription != null)
+			sessionGuidId = "";
+			var subscriptions = new List<OPCUASubscription>();
+			sessionManager.TryGetSession(sessionNodeId, out var session);
+			if (session == null)
 			{
-				subscription.SetPublishingMode(enable);
+				return subscriptions;
 			}
+			sessionGuidId = session.SessionGuidId;
+
+			foreach (var item in session.Session.Subscriptions)
+			{
+				_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + item.Id.ToString(), out string subscriptionGuidId);
+				
+				//unexpected
+				if (string.IsNullOrEmpty(subscriptionGuidId))
+				{
+					_subscriptions.TryRemove(sessionNodeId + subscriptionKey + item.Id.ToString(), out _);
+					continue;
+				}
+				subscriptions.Add(new OPCUASubscription
+				{
+					Subscription = item,
+					SubscriptionGuidId = subscriptionGuidId
+				});
+			};
+
+			return subscriptions;
 		}
 
-		public void DeleteMonitoringItem(uint subscriptionId, string nodeId)
+		public Subscription GetSubscription(string sessionNodeId, uint subscriptionId, out string subscriptionGuidId)
 		{
-			var session = sessionManager.CurrentSession.Session;
-			Subscription subscription = session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
-
-			var monItem = subscription.MonitoredItems.FirstOrDefault(c => c.StartNodeId.ToString() == nodeId);
-			subscription.RemoveItem(monItem);
-			subscription.ApplyChanges();
-
+			subscriptionGuidId = "";
+			sessionManager.TryGetSession(sessionNodeId, out var session);
+			if (session == null)
+			{
+				return null;
+			}
+			_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + subscriptionId.ToString(), out subscriptionGuidId);
+			return session.Session.Subscriptions.FirstOrDefault(c => c.Id == subscriptionId);
 		}
 
-		private Subscription CreateSubscription(SubscriptionParameters subsParams)
+		#region private
+
+		private Subscription CreateSubscription(Session session, SubscriptionRequest subsParams)
 		{
-			var session = sessionManager.CurrentSession.Session;
 			var subscription = new Subscription(session.DefaultSubscription)
 			{
 				DisplayName = subsParams.DisplayName,
@@ -164,60 +201,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			return subscription;
 		}
 
-		private void AddMonitoredItem(Subscription subscription, string nodeId)
-		{
-			try
-			{
-				var opcNodeId = new NodeId(nodeId);
-				var desc = new BrowseDescription
-				{
-					NodeId = opcNodeId,
-					BrowseDirection = BrowseDirection.Forward,
-					IncludeSubtypes = true,
-					NodeClassMask = (uint)NodeClass.Variable | (uint)NodeClass.Object,
-					ResultMask = (uint)BrowseResultMask.All
-				};
-
-				var nodeReferenceDescription = sessionManager.CurrentSession.Session.Browse(null, null, 0u, new BrowseDescriptionCollection() { desc }, out var results, out var diagnosticInfos);
-
-				if (nodeReferenceDescription == null)
-				{
-					LoggerManager.Logger.Error($"Node with ID {nodeId} not found.");
-					return;
-				}
-				var nodeData = nodeManager.FindNodeOnServer(nodeId);
-
-				MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem)
-				{
-					DisplayName = nodeData.DisplayName.ToString(),
-					StartNodeId = opcNodeId,
-					NodeClass = nodeData.NodeClass,
-					AttributeId = Attributes.Value,
-					SamplingInterval = 0,
-					QueueSize = 1,
-					DiscardOldest = true,
-				};
-
-				// add condition fields to any event filter.
-				EventFilter filter = monitoredItem.Filter as EventFilter;
-
-				if (filter != null)
-				{
-					monitoredItem.AttributeId = Attributes.EventNotifier;
-					monitoredItem.QueueSize = 0;
-				}
-
-				//monitoredItem.Notification += (OnMonitoredItemNotification);
-
-				subscription.AddItem(monitoredItem);
-				subscription.ApplyChanges();
-				LoggerManager.Logger.Information($"| {monitoredItem.StartNodeId} added to monitoring");
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("Failed to add to monitoring: {0}", ex.Message);
-			}
-		}
+		#endregion
 
 
 		#region events
@@ -229,24 +213,12 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 		private void Subscription_StateChanged(Subscription subscription, SubscriptionStateChangedEventArgs e)
 		{
-			EventMessage?.Invoke(this, new EventData
-			{
-				LogCategory = Domain.Entities.Enums.LogCategory.Info,
-				Message = e.Status.ToString(),
-				Title = "Subscription state"
-			});
-			LoggerManager.Logger.Information(e.ToString());
+			LoggerManager.Logger.Information("Subscription {subscription.Id} state: " + e.Status.ToString() + $" publishing enabled: {subscription.PublishingEnabled}");
 		}
 
 		private void Subscription_PublishStatusChanged(Subscription subscription, PublishStateChangedEventArgs e)
 		{
-			EventMessage?.Invoke(this, new EventData
-			{
-				LogCategory = Domain.Entities.Enums.LogCategory.Info,
-				Message = e.Status.ToString(),
-				Title = "Publish state"
-			});
-			LoggerManager.Logger.Information(e.ToString());
+			LoggerManager.Logger.Information("Publish state: " + e.Status.ToString());
 		}
 		#endregion
 

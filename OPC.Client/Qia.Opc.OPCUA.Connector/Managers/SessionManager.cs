@@ -1,12 +1,10 @@
-﻿using AutoMapper;
-using Opc.Ua;
+﻿using Opc.Ua;
 using Opc.Ua.Client;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Entities.Enums;
 using Qia.Opc.OPCUA.Connector.Entities;
-using QIA.Opc.Domain.Request;
+using QIA.Opc.Domain.Requests;
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using System.Net.NetworkInformation;
 
 namespace Qia.Opc.OPCUA.Connector.Managers
@@ -19,10 +17,10 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 	public class SessionManager
 	{
 		private readonly ApplicationConfiguration _applicationConfiguration;
-		private ConcurrentDictionary<string, OPCUASession> _sessions = new ConcurrentDictionary<string, OPCUASession>();
-		private OPCUASession _currentSession;
 		private SessionReconnectHandler m_reconnectHandler;
-		public OPCUASession CurrentSession => _currentSession ?? new OPCUASession();
+		private ConcurrentDictionary<string, OPCUASession> _sessions = new ConcurrentDictionary<string, OPCUASession>();
+		//private OPCUASession _currentSession;
+		//public OPCUASession CurrentSession => _currentSession ?? new OPCUASession();
 
 		/// <summary>
 		/// Max timeout when creating a new session to a server.
@@ -61,94 +59,89 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			return sessions;
 		}
 
-		public void TryGetSession(string sessionId, out OPCUASession session)
+		public void TryGetSession(string? sessionNodeId, out OPCUASession session, bool isConnecting = false)
 		{
-			if (sessionId == null)
+			session = null;
+			if (string.IsNullOrWhiteSpace(sessionNodeId)) return;
+
+			_sessions.TryGetValue(sessionNodeId, out session);
+			if (session == null && !isConnecting)
 			{
-				session = null;
-				return;
+				throw new Exception("Session is not connected");
 			}
-			_sessions.TryGetValue(sessionId, out session);
-			if (session != null)
+			else
+			{
 				session.LastAccessed = DateTime.UtcNow;
-			_currentSession = session;
+			}
 		}
 
-		public OPCUASession CreateUniqueSession(SessionRequest sessionDto)
+		public OPCUASession CreateUniqueSession(SessionRequest sessionRequest)
 		{
-			//reconnect
-			if (_currentSession != null && _currentSession.Name == sessionDto.Name && _currentSession.EndpointUrl == sessionDto.EndpointUrl)
-			{
-				RemoveSession(_currentSession.SessionId);
-			}
-
-			_currentSession = new OPCUASession();
+			var newSession = new OPCUASession();
 			EndpointDescription selectedEndpoint = null;
 			ConfiguredEndpoint configuredEndpoint = null;
 			try
 			{
-				_currentSession.EndpointUrl = sessionDto.EndpointUrl;
-				_currentSession.Name = sessionDto.Name;
+				newSession.EndpointUrl = sessionRequest.EndpointUrl;
+				newSession.Name = sessionRequest.Name;
+				newSession.SessionGuidId = sessionRequest.SessionGuidId;
 
-				var url = new Uri(_currentSession.EndpointUrl);
-				Ping pinger = new Ping();
-				PingReply reply = pinger.Send(url.Host);
-				Logger.Information($"PING {url.Host}: {reply.Status}");
-				selectedEndpoint = CoreClientUtils.SelectEndpoint(_applicationConfiguration, _currentSession.EndpointUrl, useSecurity: ApplicationConfigBuilder.UseSecurity);
+				CheckIfMachineIsActive(newSession.EndpointUrl);
+
+				selectedEndpoint = CoreClientUtils.SelectEndpoint(_applicationConfiguration, newSession.EndpointUrl, useSecurity: ApplicationConfigBuilder.UseSecurity);
 
 				configuredEndpoint = new ConfiguredEndpoint(null, selectedEndpoint, EndpointConfiguration.Create(_applicationConfiguration));
 
-				Logger.Information($"Create {(ApplicationConfigBuilder.UseSecurity ? "secured" : "unsecured")} session for endpoint URI: '{_currentSession.EndpointUrl}' name: '{_currentSession.Name}' with timeout of {_currentSession.ExpiryDuration} h.");
+				Logger.Information($"Create {(ApplicationConfigBuilder.UseSecurity ? "secured" : "unsecured")} session for endpoint URI: '{newSession.EndpointUrl}' name: '{newSession.Name}' with timeout of {newSession.ExpiryDuration} h.");
 
 				// Create an OPC UA session with the selected endpoint.
-				var session = global::Opc.Ua.Client.Session.Create(
+				var session = Session.Create(
 					_applicationConfiguration,
 					configuredEndpoint,
 					false,
 					"",
-					sessionTimeout: (uint)_currentSession.ExpiryDuration.Milliseconds,
+					sessionTimeout: (uint)newSession.ExpiryDuration.Milliseconds,
 					new UserIdentity(new AnonymousIdentityToken()),
 					null).GetAwaiter().GetResult();
 
-
-				var uniqueId = Guid.NewGuid().ToString();
-				_currentSession = new OPCUASession
+				newSession = new OPCUASession
 				{
-					Name = sessionDto.Name,
-					SessionId = uniqueId,
-					EndpointUrl = sessionDto.EndpointUrl,
+					EndpointUrl = sessionRequest.EndpointUrl,
+					Name = sessionRequest.Name,
+					SessionGuidId = sessionRequest.SessionGuidId,
+					SessionNodeId = session.SessionId.ToString(),
 					CreatedAt = DateTime.UtcNow,
 					LastAccessed = DateTime.UtcNow,
 					State = SessionState.Connected,
 					Session = session
 				};
 
-				_sessions.TryAdd(uniqueId, _currentSession);
-				return _currentSession;
+				_sessions.TryAdd(session.SessionId.ToString(), newSession);
+				return newSession;
 			}
 			catch (Exception e)
 			{
-				Logger.Error(e, $"Session creation to endpoint '{_currentSession.EndpointUrl}' failed {++UnsuccessfulConnectionCount} time(s). Please verify if server is up and configuration is correct.\n {e.Message} {e.InnerException?.Message}");
+				Logger.Error(e, $"Session creation to endpoint '{newSession.EndpointUrl}' failed {++UnsuccessfulConnectionCount} time(s). Please verify if server is up and configuration is correct.\n {e.Message} {e.InnerException?.Message}");
 
-				RemoveSession(_currentSession.SessionId);
-				return _currentSession;
+				RemoveSession(newSession.SessionNodeId);
+				return newSession;
 			}
 			finally
 			{
-				if (_currentSession.Session != null)
+				if (newSession.Session != null)
 				{
 
-					Logger.Information($"Session successfully created with Id {_currentSession.Session.SessionId}.");
+					Logger.Information($"Session successfully created with Id {newSession.Session.SessionId}.");
 					if (!selectedEndpoint.EndpointUrl.Equals(configuredEndpoint.EndpointUrl.AbsoluteUri, StringComparison.OrdinalIgnoreCase))
 					{
 						Logger.Information($"the Server has updated the EndpointUrl to '{selectedEndpoint.EndpointUrl}'");
 					}
 
-					_currentSession.Session.KeepAliveInterval = OpcKeepAliveInterval * 1000;
-					_currentSession.Session.KeepAlive += StandardClient_KeepAlive;
+					newSession.Session.KeepAliveInterval = OpcKeepAliveInterval * 1000;
+					newSession.Session.KeepAlive += StandardClient_KeepAlive;
 
 					// fetch the namespace array and cache it. it will not change as long the session exists.
-					DataValue namespaceArrayNodeValue = _currentSession.Session.ReadValue(VariableIds.Server_NamespaceArray);
+					DataValue namespaceArrayNodeValue = newSession.Session.ReadValue(VariableIds.Server_NamespaceArray);
 					_namespaceTable.Update(namespaceArrayNodeValue.GetValue<string[]>(null));
 
 					// show the available namespaces
@@ -160,15 +153,43 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 					}
 
 					// fetch the minimum supported item sampling interval from the server.
-					DataValue minSupportedSamplingInterval = _currentSession.Session.ReadValue(VariableIds.Server_ServerCapabilities_MinSupportedSampleRate);
+					DataValue minSupportedSamplingInterval = newSession.Session.ReadValue(VariableIds.Server_ServerCapabilities_MinSupportedSampleRate);
 					_minSupportedSamplingInterval = minSupportedSamplingInterval.GetValue(0);
 					Logger.Information($"The server on endpoint '{selectedEndpoint.EndpointUrl}' supports a minimal sampling interval of {_minSupportedSamplingInterval} ms.");
-					_currentSession.State = SessionState.Connected;
+					newSession.State = SessionState.Connected;
 				}
 				else
 				{
-					_currentSession.State = SessionState.Disconnected;
+					newSession.State = SessionState.Disconnected;
 				}
+			}
+		}
+
+		/// <summary>
+		/// Disconnects a session and removes all subscriptions on it and marks all nodes on those subscriptions
+		/// as unmonitored.
+		/// </summary>
+		public void DisconnectSession(string sessionNodeId)
+		{
+			if (string.IsNullOrWhiteSpace(sessionNodeId)) return;
+
+			TryGetSession(sessionNodeId, out var session);
+			if (session == null) return;
+
+			try
+			{
+				Logger.Information($"Closing session to endpoint URI '{session.EndpointUrl}' closed successfully.");
+
+				session.Session.Close();
+				Logger.Information($"Session to endpoint URI '{session.EndpointUrl}' closed successfully.");
+
+				RemoveSession(session.SessionNodeId);
+				MissedKeepAlives = 0;
+			}
+			catch (Exception ex)
+			{
+				Logger.Error($"Error on session close '{session.EndpointUrl}' {ex.Message}");
+				throw;
 			}
 		}
 
@@ -182,17 +203,30 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 		}
 
-		public void RemoveSession(string sessionId)
+		private void RemoveSession(string sessionNodeId)
 		{
 			try
 			{
-				var result = _sessions.TryRemove(sessionId, out _);
-				_currentSession = new OPCUASession();
+				var result = _sessions.TryRemove(sessionNodeId, out _);
 			}
 			catch
 			{
 				//session is removed already
 			}
+		}
+
+		private void CheckIfMachineIsActive(string endpointUrl)
+		{
+			var url = new Uri(endpointUrl);
+			Ping pinger = new Ping();
+			PingReply reply = pinger.Send(url.Host);
+			if (reply.Status != IPStatus.Success)
+			{
+				Logger.Error($"PING {url.Host}: {reply.Status}");
+				throw new Exception($"Machine with IP {url.Host} is not active");
+			}
+
+			Logger.Information($"PING {url.Host}: {reply.Status}");
 		}
 
 		/// <summary>
@@ -202,7 +236,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		{
 			try
 			{
-				if (e != null && session != null && _currentSession != null && session.ConfiguredEndpoint != null && _currentSession.Session != null)
+				if (e != null && session != null && session.ConfiguredEndpoint != null)
 				{
 					if (!ServiceResult.IsGood(e.Status))
 					{
@@ -211,7 +245,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 						Logger.Information($"Good publish requests: {session.GoodPublishRequestCount}, KeepAlive interval: {session.KeepAliveInterval}");
 						Logger.Information($"SessionId: {session.SessionId}");
 
-						if (_currentSession.State == SessionState.Connected)
+						//if (_currentSession.State == SessionState.Connected)
 						{
 							MissedKeepAlives++;
 							Logger.Information($"Missed KeepAlives: {MissedKeepAlives}");
@@ -224,7 +258,13 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 								});
 								Logger.Warning($"Hit configured missed keep alive threshold of {OpcKeepAliveDisconnectThreshold}. Disconnecting the session to endpoint {session.ConfiguredEndpoint.EndpointUrl}.");
 								session.KeepAlive -= StandardClient_KeepAlive;
-								Task t = Task.Run(async () => await DisconnectCurrentAsync());
+								Task t = Task.Run(async () =>
+								{
+									if (session.SessionId == null)
+										return;
+									_sessions.TryRemove(session.SessionId.ToString(), out _);
+									await session.CloseAsync();
+								});
 							}
 						}
 					}
@@ -249,50 +289,6 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 		}
 
-		/// <summary>
-		/// Disconnects a session and removes all subscriptions on it and marks all nodes on those subscriptions
-		/// as unmonitored.
-		/// </summary>
-		public async Task DisconnectCurrentAsync()
-		{
-			try
-			{
-				if (_currentSession == null || _currentSession.State != SessionState.Connected)
-					return;
-
-				Logger.Information($"Closing session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
-
-				_currentSession.Session.Close();
-				Logger.Information($"Session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
-
-				RemoveSession(_currentSession.SessionId);
-				MissedKeepAlives = 0;
-			}
-			catch (Exception ex)
-			{
-				Logger.Error($"Error on session '{_currentSession.EndpointUrl}' close. {ex.Message}");
-			}
-			await Task.CompletedTask;
-		}
-
-		public async Task DisconnectAsync(OPCUASession session)
-		{
-			try
-			{
-				Logger.Information($"Closing session to endpoint URI '{session.EndpointUrl}' closed successfully.");
-
-				session.Session.Close();
-				Logger.Information($"Session to endpoint URI '{_currentSession.EndpointUrl}' closed successfully.");
-
-				RemoveSession(session.SessionId);
-				MissedKeepAlives = 0;
-			}
-			catch (Exception ex)
-			{
-				Logger.Error($"Error on session '{session.EndpointUrl}' close. {ex.Message}");
-			}
-			await Task.CompletedTask;
-		}
 
 		private CancellationTokenSource _sessionCancelationTokenSource;
 		private NamespaceTable _namespaceTable;

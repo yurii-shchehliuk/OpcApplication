@@ -1,15 +1,11 @@
+import { SessionState } from './enums';
+
 export interface SessionEntity {
-  id: number;
-  sessionId: string;
+  sessionGuidId: string;
   sessionNodeId: string;
   name: string;
   endpointUrl: string;
   state: SessionState;
-  nodeConfigs: null;
-}
-
-export enum SessionState {
-  connected,
-  disconnected,
-  connecting,
+  //
+  isSelected: boolean;
 }

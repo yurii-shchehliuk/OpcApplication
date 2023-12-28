@@ -3,23 +3,24 @@ import { Observable, Subject } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 import { environment } from 'src/environments/environment.development';
 import { NotificationService } from '../shared/notification.service';
-import { NodeValue } from '../models/nodeModels';
-import { EventData, LogCategory } from '../models/eventModels';
-import { SubscriptionEntity } from '../models/subscriptionModels';
+import { EventData } from '../models/eventModels';
+import { LogCategory } from '../models/enums';
+import { MonitoredItemValue } from '../models/monitoredItem';
+import { SubscriptionValue } from '../models/subscriptionModels';
 
 @Injectable({
   providedIn: 'root',
 })
 export class CommunicationService {
   private hubConnection: signalR.HubConnection;
-  private nodeSubject = new Subject<NodeValue>();
-  private subscriptionSubject = new Subject<SubscriptionEntity>();
+  private nodeSubject = new Subject<MonitoredItemValue>();
+  private subscriptionSubject = new Subject<SubscriptionValue>();
 
-  get getNodeObservable(): Observable<NodeValue> {
+  get getNodeObservable(): Observable<MonitoredItemValue> {
     return this.nodeSubject.asObservable();
   }
 
-  get subscriptionObservable(): Observable<SubscriptionEntity> {
+  get subscriptionObservable(): Observable<SubscriptionValue> {
     return this.subscriptionSubject.asObservable();
   }
 
@@ -46,22 +47,24 @@ export class CommunicationService {
 
       return 'Connected';
     } catch (err) {
-      console.error('Error while connecting to SignalR hub:', err);
+      let message = 'Error while connecting to SignalR hub';
+      this.notificationService.showError(message, '');
+      console.error(message, err);
       return undefined;
     }
   }
 
   private listenNodesSubscription(method: string = 'SendNodeAction') {
-    this.hubConnection.on(method, (data: NodeValue) => {
-      let result = data as NodeValue;
-      result.storeTime = new Date(data.storeTime).toLocaleString();
+    this.hubConnection.on(method, (data: MonitoredItemValue) => {
+      let result = data as MonitoredItemValue;
+      result.createdAt = new Date(data.createdAt).toLocaleString();
       this.nodeSubject.next(result);
     });
   }
 
   private listenSubscription(method: string = 'SendSubscriptionAction') {
     // get subscription with monitored items
-    this.hubConnection.on(method, (data: SubscriptionEntity) => {
+    this.hubConnection.on(method, (data: SubscriptionValue) => {
       this.subscriptionSubject.next(data);
     });
   }

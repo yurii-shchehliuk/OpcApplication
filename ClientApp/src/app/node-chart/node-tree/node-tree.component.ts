@@ -6,14 +6,19 @@ import {
   DynamicDatabase,
   DynamicFlatNode,
 } from './dynamic-database.service';
-import { SessionEntity, SessionState } from 'src/app/models/sessionModels';
+import { SessionEntity } from 'src/app/models/sessionModels';
 import { SessionAccessorService } from 'src/app/shared/session-accessor.service';
 import { SubscriptionParametersDialogComponent } from 'src/app/subscription/subscription-parameters-dialog/subscription-parameters-dialog.component';
 import { MatDialog } from '@angular/material/dialog';
 import { TreeService } from 'src/app/services/tree.service';
-import { SubscriptionEntity } from 'src/app/models/subscriptionModels';
 import { SubscriptionService } from 'src/app/services/subscription.service';
-import { NodeReference } from 'src/app/models/nodeModels';
+import { SessionState } from 'src/app/models/enums';
+import {
+  SubscriptionConfig,
+  SubscriptionValue,
+} from 'src/app/models/subscriptionModels';
+import { MonitoredItemValue } from 'src/app/models/monitoredItem';
+import { MonitoredItemService } from 'src/app/services/monitored-item.service';
 
 @Component({
   selector: 'app-node-tree',
@@ -25,14 +30,15 @@ export class NodeTreeComponent implements OnInit {
   dataSource: DynamicDataSource;
   sessionSource: SessionEntity;
   sessionState = SessionState;
-  subscriptionsArr: SubscriptionEntity[] = [];
+  subscriptionsArr: SubscriptionValue[] = [];
 
   constructor(
     private database: DynamicDatabase,
     private sessionAccessor: SessionAccessorService,
     private treeService: TreeService,
     public dialog: MatDialog,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    private monitoredItemSvs: MonitoredItemService
   ) {
     this.treeControl = new FlatTreeControl<DynamicFlatNode>(
       this.getLevel,
@@ -51,9 +57,9 @@ export class NodeTreeComponent implements OnInit {
 
   ngOnInit(): void {
     this.subscriptionService.newSubscription$.subscribe({
-      next: (value: SubscriptionEntity) => {
+      next: (value: SubscriptionValue) => {
         const index = this.subscriptionsArr.findIndex(
-          (sub) => sub.id === value.id
+          (sub) => sub.opcUaId === value.opcUaId
         );
 
         if (index !== -1) {
@@ -67,7 +73,7 @@ export class NodeTreeComponent implements OnInit {
     this.subscriptionService.subscriptionToRemove$.subscribe({
       next: (subscriptionId: string) => {
         const index = this.subscriptionsArr.findIndex(
-          (sub) => sub.id.toString() === subscriptionId
+          (sub) => sub.opcUaId.toString() === subscriptionId
         );
         this.subscriptionsArr.splice(index, 1);
       },
@@ -85,16 +91,19 @@ export class NodeTreeComponent implements OnInit {
     });
   }
 
-  addNewSubscription(node: NodeReference) {
-    if (!node.nodeId) return;
+  addNewSubscription(node: MonitoredItemValue) {
+    if (!node.startNodeId) return;
     this.dialog.open(SubscriptionParametersDialogComponent, {
-      data: JSON.parse(JSON.stringify(node.nodeId)),
+      data: {
+        nodeId: JSON.parse(JSON.stringify(node.startNodeId)),
+        opcUaId: null,
+      },
     });
   }
 
-  addToSubscription(subscriptionName: string, node: NodeReference) {
+  addToSubscription(subscription: SubscriptionValue, node: MonitoredItemValue) {
     if (!node) return;
-    this.subscriptionService.addToSubscription(subscriptionName, node.nodeId);
+    this.monitoredItemSvs.addToSubscription(subscription, node.startNodeId);
   }
 
   getLevel = (node: DynamicFlatNode) => node.level;

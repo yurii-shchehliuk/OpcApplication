@@ -2,9 +2,15 @@
     <h2>Hub source</h2>
 
     <div #sessionList class="channelList">
-        <div routerLink="." *ngFor="let session of sessionArr" class="channel" (click)="selectSession(session)">
+        <div routerLink="." *ngFor="let session of sessionArr" class="channel"
+            [class.channel-selected]="session.isSelected" (click)="selectSession(session)">
             <p class="channel-text">{{session.name}}</p>
-            <i class="bi bi-pencil" (click)="openDialog($event,session)"></i>
+            <div class="actions">
+                <i [hidden]="session.state!==0" class="bi bi-stop" matTooltip="Disconnect" matTooltipPosition="above"
+                    (click)="disconnectSession($event,session)"></i>
+                <i class="bi bi-pencil" data-bs-toggle="tooltip" matTooltip="Manage" matTooltipPosition="above"
+                    (click)="openDialog($event,session)"></i>
+            </div>
         </div>
     </div>
 

@@ -2,16 +2,16 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs';
 import { environment } from 'src/environments/environment.development';
-import { NodeReference, NodeValue } from '../models/nodeModels';
 import { NotificationService } from '../shared/notification.service';
 import { SessionAccessorService } from '../shared/session-accessor.service';
 import { CommunicationService } from './communication.service';
+import { MonitoredItemConfig, MonitoredItemValue } from '../models/monitoredItem';
 
 @Injectable({
   providedIn: 'root',
 })
 export class NodeService {
-  private configNodesSubj = new BehaviorSubject<NodeReference[]>([]);
+  private configNodesSubj = new BehaviorSubject<MonitoredItemValue[]>([]);
   private nodeToRemoveSubj = new Subject<string>();
 
   baseUrl = environment.server + 'node/';
@@ -24,7 +24,7 @@ export class NodeService {
     return this.configNodesSubj.asObservable();
   }
 
-  get getNodeValueObservable$(): Observable<NodeValue> {
+  get getNodeValueObservable$(): Observable<MonitoredItemValue> {
     return this.communicationService.getNodeObservable;
   }
 
@@ -36,7 +36,7 @@ export class NodeService {
     this.nodeToRemoveSubj.next(node);
   }
 
-  addConfigNode(node: NodeReference) {
+  addConfigNode(node: MonitoredItemConfig) {
     return this.http.post(this.baseUrl + 'create', node).subscribe(() => {
       this.getConfigNodes();
     });
@@ -49,7 +49,7 @@ export class NodeService {
   }
 
   getConfigNodes() {
-    this.http.get<NodeReference[]>(this.baseUrl + 'config/list').subscribe({
+    this.http.get<MonitoredItemValue[]>(this.baseUrl + 'config/list').subscribe({
       next: (res) => {
         this.configNodesSubj.next(res);
       },

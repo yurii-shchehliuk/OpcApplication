@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { SessionEntity, SessionState } from '../models/sessionModels';
+import { SessionEntity } from '../models/sessionModels';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { SessionService } from '../services/session.service';
 import { NotificationService } from './notification.service';
+import { SessionState } from '../models/enums';
 
 @Injectable({
   providedIn: 'root',

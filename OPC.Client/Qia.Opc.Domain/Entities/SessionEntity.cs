@@ -1,18 +1,18 @@
 ﻿using Qia.Opc.Domain.Entities.Enums;
 using Qia.Opc.Domain.Entities.Interfaces;
-using System.ComponentModel.DataAnnotations;
+using QIA.Opc.Domain.Entities;
 
 namespace Qia.Opc.Domain.Entities
 {
 	public class SessionEntity : IBaseEntity
 	{
-		[Key]
-		public int Id { get; set; }
-		public string? SessionId { get; set; }
-		public string? SessionNodeId { get; set; }
+		public string SessionGuidId { get; set; }
+		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+		public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
+		public DateTime? LastAccessed { get; set; }
 		public string Name { get; set; }
 		public string EndpointUrl { get; set; }
 		public SessionState State { get; set; } = SessionState.Disconnected;
-		public ICollection<NodeReferenceEntity>? NodeConfigs { get; set; } = null;
+		public List<SubscriptionConfig>? SubscriptionConfigs { get; set; } = new();
 	}
 }

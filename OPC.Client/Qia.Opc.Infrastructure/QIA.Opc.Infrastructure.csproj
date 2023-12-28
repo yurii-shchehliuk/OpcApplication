@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
@@ -7,8 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Repositories\GenericContext.cs" />
     <Compile Remove="Services\Communication\AzureMessageService.cs" />
     <Compile Remove="Services\NodeManager.cs" />
+    <Compile Remove="Services\OPCUA\NodeService.cs" />
     <Compile Remove="Services\SubscriptionManager.cs" />
     <Compile Remove="Services\TreeManager.cs" />
   </ItemGroup>
@@ -26,5 +28,9 @@
     <ProjectReference Include="..\Qia.Opc.OPCUA.Connector\QIA.Opc.OPCUA.Connector.csproj" />
     <ProjectReference Include="..\Qia.Opc.Persistence\QIA.Opc.Persistence.csproj" />
   </ItemGroup>
+
+	<ItemGroup>
+		<Using Include="System.Net" />
+	</ItemGroup>
 
 </Project>

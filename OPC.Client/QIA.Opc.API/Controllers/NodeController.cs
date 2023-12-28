@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Opc.Ua;
 using Qia.Opc.Domain.Entities;
 using QIA.Opc.Infrastructure.Services.OPCUA;
+using System.Collections.Generic;
 
 namespace QIA.Opc.API.Controllers
 {
@@ -15,25 +15,28 @@ namespace QIA.Opc.API.Controllers
 		}
 
 		[HttpGet("config/list")]
-		public async Task<ActionResult<IEnumerable<NodeReferenceEntity>>> GetConfigNodes()
+		public async Task<ActionResult<IEnumerable<MonitoredItemConfig>>> GetConfigNodes()
 		{
-			var result = await nodeService.GetConfigNodesAsync();
-			return Ok(result);
+			var nodesReponse = await nodeService.GetConfigNodesAsync();
+
+			return HandleResponse(nodesReponse);
 		}
 
 		[HttpDelete("{nodeId}")]
 		public async Task<IActionResult> DeleteConfigNode(string nodeId)
 		{
-			await nodeService.DeleteConfigNodeAsync(nodeId);
-			return Ok();
+			var response = await nodeService.DeleteConfigNodeAsync(nodeId);
+
+			return HandleResponse(response);
 		}
 
 
 		[HttpPost("create")]
-		public async Task<ActionResult<NodeReferenceEntity>> CreateConfigNode([FromBody] NodeReferenceEntity nodeReference)
+		public async Task<ActionResult<MonitoredItemConfig>> CreateConfigNode([FromBody] MonitoredItemConfig nodeReference)
 		{
-			await nodeService.AddConfigNodeAsync(nodeReference);
-			return Ok();
+			var response = await nodeService.AddConfigNodeAsync(nodeReference);
+
+			return HandleResponse(response);
 		}
 	}
 }

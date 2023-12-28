@@ -1,16 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace QIA.Opc.Domain.Request
+﻿namespace QIA.Opc.Domain.Requests
 {
-	/// <summary>
-	/// Requested subscription
-	/// </summary>
-	public class SubscriptionParameters
+	public class SubscriptionRequest
 	{
+		public string? SubscriptionGuidId { get; set; }
+		public uint? OpcUaId { get; set; } = 0;
 		public string DisplayName { get; set; } = string.Empty;
 		public int PublishingInterval { get; set; } = 1000;
 		public uint KeepAliveCount { get; set; } = 10;

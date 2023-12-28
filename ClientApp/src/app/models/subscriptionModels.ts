@@ -1,24 +1,19 @@
-export interface SubscriptionEntity {
-  id: number;
+import { MonitoredItemValue } from './monitoredItem';
+
+export interface SubscriptionValue {
+  subscriptionGuidId: string;
+  opcUaId: number;
   displayName: string;
-  publishInterval: number;
+  publishingInterval: number;
   itemsCount: number;
   sequenceNumber: number;
   publishingEnabled: boolean;
-  monitoringItems: MonitoringItemEntity[];
+  monitoredItems: MonitoredItemValue[];
 }
 
-export interface MonitoringItemEntity {
-  id: number;
-  displayName: string;
-  samplingInterval: number;
-  queueSize: number;
-  startNodeId: string;
-  value: string;
-  sourceTime: string;
-}
-
-export interface SubscriptionParameters {
+export interface SubscriptionConfig {
+  subscriptionGuidId: string;
+  opcUaId: number;
   displayName: string;
   publishingInterval: number;
   keepAliveCount: number;

@@ -1,10 +1,4 @@
 ﻿using Microsoft.Extensions.Hosting;
-using QIA.Opc.Infrastructure.Services.OPCUA;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace QIA.Opc.Infrastructure.ServicesHosted
 {

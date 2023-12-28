@@ -2,10 +2,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, Subscription, tap } from 'rxjs';
 import { environment } from 'src/environments/environment.development';
-import { SessionEntity, SessionState } from '../models/sessionModels';
-import { NodeService } from './node.service';
+import { SessionEntity } from '../models/sessionModels';
 import { NotificationService } from '../shared/notification.service';
-import { SubscriptionService } from './subscription.service';
+import { SessionState } from '../models/enums';
 
 @Injectable({
   providedIn: 'root',
@@ -13,17 +12,16 @@ import { SubscriptionService } from './subscription.service';
 export class SessionService {
   baseUrl = environment.server + 'session/';
   private SESSION_KEY = 'sessionId_';
+  currentSession: SessionEntity;
 
   private sessionListSubject = new BehaviorSubject<SessionEntity[]>([]);
-  private selectedSession = new BehaviorSubject<SessionEntity>(
+  private selectedSessionSubject = new BehaviorSubject<SessionEntity>(
     (<Partial<SessionEntity>>{}) as SessionEntity
   );
 
   constructor(
     private http: HttpClient,
-    private nodeService: NodeService,
-    private notifyService: NotificationService,
-    private subscriptionService: SubscriptionService
+    private notifyService: NotificationService
   ) {}
 
   get sessionList$(): Observable<SessionEntity[]> {
@@ -31,98 +29,85 @@ export class SessionService {
   }
 
   get selectedSession$(): Observable<SessionEntity> {
-    return this.selectedSession.asObservable();
+    return this.selectedSessionSubject.asObservable();
+  }
+
+  getSessionList() {
+    let url = `${this.baseUrl}list`;
+    this.http.get<SessionEntity[]>(url).subscribe((data: SessionEntity[]) => {
+      this.sessionListSubject.next(data);
+    });
   }
 
   createEndpoint(session: SessionEntity) {
-    return this.http
-      .post<SessionEntity>(this.baseUrl + 'create', session)
-      .subscribe({
-        next: (response: SessionEntity) => {
-          this.notifyService.showSuccess('Added successfully', '');
-        },
-        error: (err) => {
-          this.notifyService.showError(err.message, 'Cannot add session');
-          console.log(err);
-        },
-      });
-  }
-
-  connectToSession(session: SessionEntity): Subscription {
-    return this.http
-      .post<SessionEntity>(this.baseUrl + 'connect', session)
-      .subscribe({
-        next: (response: SessionEntity) => {
-          this.selectedSession.next(response);
-          sessionStorage.clear();
-          sessionStorage.setItem(
-            this.SESSION_KEY + response.name,
-            response.sessionId
-          );
-
-          setTimeout(() => {
-            this.subscriptionService.getActiveSubscriptions();
-          }, 500);
-
-          this.notifyService.showSuccess('Connected successfully', '');
-        },
-        error: (err) => {
-          this.nodeService.getConfigNodes();
-          session.state = SessionState.disconnected;
-          this.selectedSession.next(session);
-          console.log(err);
-        },
-        complete: () => {
-          this.nodeService.getConfigNodes();
-        },
-      });
-  }
-
-  updateSession(session: SessionEntity): Subscription {
-    return this.http
-      .put<SessionEntity>(this.baseUrl + 'update', session)
-      .subscribe({
-        next: (response: SessionEntity) => {
-          this.notifyService.showSuccess('Updated successfully', '');
-        },
-        error: (err) => {
-          this.notifyService.showError('Session update falied', '');
-          console.log(err);
-        },
-      });
-  }
-
-  disconnect(session: SessionEntity) {
-    return this.http
-      .post<SessionEntity>(this.baseUrl + 'disconnect', session)
-      .subscribe();
-  }
-
-  deleteSession(sessionId: string): Subscription {
-    return this.http.delete(this.baseUrl + sessionId).subscribe({
-      next: () => {
-        this.selectedSession.next(
-          (<Partial<SessionEntity>>{}) as SessionEntity
-        );
-        sessionStorage.removeItem(this.SESSION_KEY);
+    let url = `${this.baseUrl}create`;
+    return this.http.post<SessionEntity>(url, session).subscribe({
+      next: (response: SessionEntity) => {
+        this.notifyService.showSuccess('Added successfully', '');
+        //todo
+        // this.sessionListSubject.next(...response);
+      },
+      error: (err) => {
+        this.notifyService.showError(err.message, 'Cannot add session');
+        console.log(err);
       },
     });
   }
 
-  getActiveSessions() {
-    this.http
-      .get<SessionEntity[]>(this.baseUrl + 'activeSessions')
-      .subscribe((data: SessionEntity[]) => {
-        this.sessionListSubject.next(data);
-      });
+  connectToSession(session: SessionEntity): Subscription {
+    let url = `${this.baseUrl}connect`;
+
+    return this.http.post<SessionEntity>(url, session).subscribe({
+      next: (response: SessionEntity) => {
+        this.selectedSessionSubject.next(response);
+        this.currentSession = response;
+        sessionStorage.clear();
+        sessionStorage.setItem(
+          this.SESSION_KEY + response.name,
+          response.sessionNodeId
+        );
+        this.notifyService.showSuccess('Connected successfully', '');
+      },
+      error: (err) => {
+        session.state = SessionState.disconnected;
+        this.selectedSessionSubject.next(session);
+        console.error(err);
+      },
+    });
   }
 
-  getSessionList() {
-    this.http
-      .get<SessionEntity[]>(this.baseUrl + 'savedSessions')
-      .subscribe((data: SessionEntity[]) => {
-        this.sessionListSubject.next(data);
-        this.getActiveSessions();
-      });
+  disconnect(session: SessionEntity) {
+    let url = `${this.baseUrl}disconnect?sessionNodeId=${session.sessionNodeId ?? ''}`;
+    return this.http.delete<SessionEntity>(url);
+  }
+
+  updateSession(session: SessionEntity): Subscription {
+    let url = `${this.baseUrl}update?sessionNodeId=${
+      session.sessionNodeId ?? ''
+    }`;
+
+    return this.http.put<SessionEntity>(url, session).subscribe({
+      next: (response: SessionEntity) => {
+        this.notifyService.showSuccess('Updated successfully', '');
+      },
+      error: (err) => {
+        this.notifyService.showError('Session update falied', '');
+        console.log(err);
+      },
+    });
+  }
+
+  deleteSession(session: SessionEntity): Subscription {
+    let url = `${this.baseUrl}delete?sessionNodeId=${
+      session.sessionNodeId ?? ''
+    }`;
+    return this.http.delete(url).subscribe({
+      next: () => {
+        // this.selectedSession.next(
+        //   (<Partial<SessionEntity>>{}) as SessionEntity
+        // );
+        sessionStorage.removeItem(this.SESSION_KEY + session.name);
+      },
+    });
   }
 }

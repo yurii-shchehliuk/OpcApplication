@@ -1,24 +1,16 @@
 ﻿using MediatR;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Qia.Opc.Domain.Core;
-using Qia.Opc.Infrastructure.Application;
-using System.Net;
 
 namespace QIA.Opc.API.Core
 {
 	public class ExceptionMiddleware
 	{
 		private readonly RequestDelegate _next;
-		private readonly IHostEnvironment _env;
-		private readonly IMediator mediator;
 
-		public ExceptionMiddleware(RequestDelegate next, IHostEnvironment env, IMediator mediator)
+
+		public ExceptionMiddleware(RequestDelegate next)
 		{
-			_env = env;
-			this.mediator = mediator;
 			_next = next;
 		}
 
@@ -27,7 +19,6 @@ namespace QIA.Opc.API.Core
 			try
 			{
 				var user = context.User;
-				//context.Response.Headers.Add("Access-Control-Allow-Origin", "*");
 				await _next(context);
 			}
 			catch (Exception ex)
@@ -49,13 +40,6 @@ namespace QIA.Opc.API.Core
 				var json = JsonConvert.SerializeObject(response);
 
 				await context.Response.WriteAsync(json);
-
-				await mediator.Publish(new EventMediatorCommand(new Qia.Opc.Domain.Common.EventData()
-				{
-					LogCategory = Qia.Opc.Domain.Entities.Enums.LogCategory.Error,
-					Message = ex.Message,
-					Title = "Exception occured"
-				}));
 			}
 		}
 	}

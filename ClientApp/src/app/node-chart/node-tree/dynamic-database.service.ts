@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { NodeClass, TreeNode } from 'src/app/models/nodeModels';
+import { TreeNode } from 'src/app/models/treeNodeModel';
 import {
   CollectionViewer,
   SelectionChange,
@@ -9,6 +9,7 @@ import { BehaviorSubject, Observable, map, merge } from 'rxjs';
 import { FlatTreeControl } from '@angular/cdk/tree';
 import { TreeService } from 'src/app/services/tree.service';
 import { NotificationService } from 'src/app/shared/notification.service';
+import { NodeClass } from 'src/app/models/enums';
 
 /** Flat node with expandable and level information */
 export class DynamicFlatNode {
@@ -26,12 +27,12 @@ export class DynamicDatabase {
 
   constructor(
     private treeService: TreeService,
-    private notifyService: NotificationService,
+    private notifyService: NotificationService
   ) {}
 
   rootLevelNodes: TreeNode[] = [
     {
-      nodeId: '',
+      startNodeId: '',
       children: [],
       displayName: 'root',
       nodeClass: NodeClass.Object,
@@ -120,10 +121,10 @@ export class DynamicDataSource implements DataSource<DynamicFlatNode> {
     node.isLoading = true;
 
     childrenObservable.subscribe({
-      next: (children) => {
+      next: (treeNodeElement: any) => {
         if (expand) {
-          const nodes = children.map(
-            (treeNode) =>
+          const nodes = treeNodeElement.children.map(
+            (treeNode: TreeNode) =>
               new DynamicFlatNode(
                 treeNode,
                 node.level + 1,

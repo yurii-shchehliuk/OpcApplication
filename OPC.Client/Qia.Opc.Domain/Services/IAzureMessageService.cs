@@ -1,10 +1,10 @@
 ﻿using Qia.Opc.Domain.Entities;
 
-namespace QIA.Opc.Infrastructure.Interfaces
+namespace QIA.Opc.Domain.Services
 {
 	public interface IAzureMessageService
 	{
 		Task ReadMessageAsync();
-		Task SendNodeAsync(NodeValue message);
+		Task SendNodeAsync(MonitoredItemValue message);
 	}
 }

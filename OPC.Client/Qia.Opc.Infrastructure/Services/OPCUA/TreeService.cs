@@ -1,18 +1,19 @@
 ﻿using Newtonsoft.Json;
+using Qia.Opc.Domain.Core;
 using Qia.Opc.Domain.Entities;
 using Qia.Opc.OPCUA.Connector.Managers;
-using Qia.Opc.Persistence.Repository;
+using QIA.Opc.Domain.Repository;
 
 namespace QIA.Opc.Infrastructure.Services.OPCUA
 {
 	public class TreeService
 	{
 		private readonly TreeManager treeManager;
-		private readonly IDataRepository<TreeContainer> treeRepo;
+		private readonly IGenericRepository<TreeContainer> treeRepo;
 		private readonly SessionManager sessionManager;
 
 		public TreeService(TreeManager treeManager,
-					 IDataRepository<TreeContainer> treeRepo,
+					 IGenericRepository<TreeContainer> treeRepo,
 					 SessionManager sessionManager)
 		{
 			this.treeManager = treeManager;
@@ -20,25 +21,27 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 			this.sessionManager = sessionManager;
 		}
 
-		public async Task<TreeContainer> GetFullGraphAsync()
+		public async Task<ApiResponse<TreeContainer>> GetFullGraphAsync(string sessionGuidId)
 		{
-			var treeData = await treeManager.BrowseTreeAsync();
+			var treeData = await treeManager.BrowseTreeAsync(sessionGuidId);
 			var textContent = JsonConvert.SerializeObject(treeData);
+			sessionManager.TryGetSession(sessionGuidId, out var session);
 			TreeContainer treeContainer = new TreeContainer()
 			{
 				Data = textContent,
-				SourceName = sessionManager.CurrentSession.Name,
-				StoreTime = DateTime.UtcNow
+				SourceName = session.Name,
+				CreatedAt = DateTime.UtcNow
 			};
 			await treeRepo.AddAsync(treeContainer);
 
-			return treeContainer;
+			return ApiResponse<TreeContainer>.Success(treeContainer);
 
 		}
 
-		public TreeNode BrowseChild(TreeNode node)
+		public ApiResponse<TreeNode> BrowseChild(string sessionGuidId, TreeNode node)
 		{
-			return treeManager.BrowseChildren(node);
+			var result = treeManager.BrowseChildren(sessionGuidId, node);
+			return ApiResponse<TreeNode>.Success(result);
 		}
 	}
 }

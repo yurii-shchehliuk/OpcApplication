@@ -1,8 +1,4 @@
-using Azure.Storage.Blobs;
-using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
@@ -10,11 +6,15 @@ using Qia.Opc.Infrastructure.Application;
 using Qia.Opc.OPCUA.Connector;
 using Qia.Opc.OPCUA.Connector.Managers;
 using Qia.Opc.Persistence;
-using Qia.Opc.Persistence.Repository;
 using QIA.Opc.API.Core;
+using QIA.Opc.Domain;
+using QIA.Opc.Domain.Repository;
+using QIA.Opc.Infrastructure;
+using QIA.Opc.Infrastructure.Repositories;
 using QIA.Opc.Infrastructure.Services.Communication;
 using QIA.Opc.Infrastructure.Services.OPCUA;
 using QIA.Opc.Infrastructure.ServicesHosted;
+using QIA.Opc.OPCUA.Connector.Managers;
 using System.Text.Json;
 
 namespace QIA.Opc.API
@@ -50,16 +50,17 @@ namespace QIA.Opc.API
 			// connector
 			builder.Services.AddSingleton<SessionManager>();
 			builder.Services.AddSingleton<SubscriptionManager>();
-			builder.Services.AddScoped<MonitoredItemManager>();
 			builder.Services.AddScoped<TreeManager>();
-			builder.Services.AddTransient<NodeManager>();
+			builder.Services.AddTransient<MonitoredItemManager>();
 
 			// infrastructure
 			builder.Services.AddTransient<CleanerService>();
-			builder.Services.AddTransient<NodeService>();
+			//builder.Services.AddTransient<NodeService>();
 			builder.Services.AddScoped<SessionService>();
 			builder.Services.AddScoped<TreeService>();
 			builder.Services.AddScoped<SubscriptionService>();
+			builder.Services.AddScoped<MonitoredItemService>();
+			//builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 			// communication
 			builder.Services.AddSingleton<SignalRService>();
@@ -69,7 +70,7 @@ namespace QIA.Opc.API
 			//builder.Services.AddHostedService<SessionCleanupService>();
 
 			// database
-			builder.Services.AddScoped(typeof(IDataRepository<>), typeof(DataRepositoryMSSQL<>));
+			builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
 			builder.Services.AddDbContextFactory<OpcDbContext>(x =>
 												x.UseSqlServer(settings.DbConnectionString));
@@ -110,9 +111,7 @@ namespace QIA.Opc.API
 			app.UseHttpsRedirection();
 			app.UseHsts();
 
-			app.UseMiddleware<SessionMiddleware>();
 			app.UseMiddleware<ExceptionMiddleware>();
-
 
 			app.UseCors(webClient);
 

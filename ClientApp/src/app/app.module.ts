@@ -35,7 +35,8 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { ToastrModule } from 'ngx-toastr';
 import { SubscriptionComponent } from './subscription/subscription.component';
 import { SubscriptionParametersDialogComponent } from './subscription/subscription-parameters-dialog/subscription-parameters-dialog.component';
-import { MonitoringItemDialogComponent } from './monitoring-item-dialog/monitoring-item-dialog.component';
+import { MonitoringItemDialogComponent } from './subscription/monitoring-item-dialog/monitoring-item-dialog.component';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @NgModule({
   declarations: [
@@ -71,6 +72,7 @@ import { MonitoringItemDialogComponent } from './monitoring-item-dialog/monitori
     MatProgressBarModule,
     MatProgressSpinnerModule,
     MatMenuModule,
+    MatTooltipModule,
     //
     HttpClientModule,
     ReactiveFormsModule,

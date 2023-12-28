@@ -1,34 +1,36 @@
 <h1 mat-dialog-title>Subscription parameters</h1>
-<mat-dialog-content [formGroup]="subscriptionParametersForm" class="subcriptionForm" (ngSubmit)="onSubmit()">
-    <mat-form-field>
-        <mat-label>Display Name</mat-label>
-        <input matInput type="text" formControlName="displayName">
-    </mat-form-field>
-    <mat-form-field>
-        <mat-label>Publishing Interval</mat-label>
-        <input matInput type="number" min="0" max="1000000000" step="1000" formControlName="publishingInterval">
-    </mat-form-field>
-    <mat-form-field>
-        <mat-label>Keep Alive Count</mat-label>
-        <input matInput type="number" min="0" max="1000" formControlName="keepAliveCount">
-    </mat-form-field>
-    <mat-form-field>
-        <mat-label>Lifetime Count</mat-label>
-        <input matInput type="number" min="0" max="10000" formControlName="lifetimeCount">
-    </mat-form-field>
-    <mat-form-field>
-        <mat-label>Max Notifications Per Publish</mat-label>
-        <input matInput type="number" min="0" max="1000" formControlName="maxNotificationsPerPublish">
-    </mat-form-field>
-    <mat-form-field>
-        <mat-label>Priority</mat-label>
-        <input matInput type="number" min="0" max="255" formControlName="priority">
-    </mat-form-field>
-    <mat-checkbox formControlName="publishingEnabled">
-        <mat-label>Publishing Enabled</mat-label>
-    </mat-checkbox>
-</mat-dialog-content>
-<mat-dialog-actions align="end">
-    <button mat-flat-button mat-dialog-close>Cancel</button>
-    <button mat-flat-button type="submit" mat-dialog-close>Ok</button>
-</mat-dialog-actions>
+<form [formGroup]="subscriptionParametersForm" (ngSubmit)="onSubmit()">
+    <mat-dialog-content class="subcriptionForm">
+        <mat-form-field>
+            <mat-label>Display Name</mat-label>
+            <input matInput type="text" formControlName="displayName">
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Publishing Interval</mat-label>
+            <input matInput type="number" min="0" max="1000000000" step="1000" formControlName="publishingInterval">
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Keep Alive Count</mat-label>
+            <input matInput type="number" min="0" max="1000" formControlName="keepAliveCount">
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Lifetime Count</mat-label>
+            <input matInput type="number" min="0" max="10000" formControlName="lifetimeCount">
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Max Notifications Per Publish</mat-label>
+            <input matInput type="number" min="0" max="1000" formControlName="maxNotificationsPerPublish">
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Priority</mat-label>
+            <input matInput type="number" min="0" max="255" formControlName="priority">
+        </mat-form-field>
+        <mat-checkbox formControlName="publishingEnabled">
+            <mat-label>Publishing Enabled</mat-label>
+        </mat-checkbox>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+        <button mat-flat-button mat-dialog-close>Cancel</button>
+        <button mat-flat-button type="submit" mat-dialog-close>Ok</button>
+    </mat-dialog-actions>
+</form>
