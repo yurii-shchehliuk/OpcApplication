@@ -1,5 +1,4 @@
-﻿using QIA.Opc.Domain.Entities;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 
 namespace QIA.Opc.Domain.Repository
 {
@@ -8,9 +7,11 @@ namespace QIA.Opc.Domain.Repository
 		Task UpsertAsync(T entity, Expression<Func<T, bool>> filter);
 		Task<T> AddAsync(T entity);
 		Task DeleteAsync(T entity);
+		Task DeleteAsync(Expression<Func<T, bool>> filter);
 		Task<T> FindAsync(Expression<Func<T, bool>> filter, bool asNoTracking = false, params Expression<Func<T, object>>[] includes);
 		Task<IEnumerable<T>> ListAllAsync(Expression<Func<T, bool>> filter = null, bool asNoTracking = false, params Expression<Func<T, object>>[] includes);
 		Task SaveChangesAsync();
-		Task UpdateAsync(T subsUpdated);
+		//todo: service for subscription and override
+		Task UpdateAsync(T updatedItem);
 	}
 }

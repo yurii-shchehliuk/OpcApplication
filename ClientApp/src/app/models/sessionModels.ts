@@ -1,7 +1,7 @@
 import { SessionState } from './enums';
 
 export interface SessionEntity {
-  sessionGuidId: string;
+  guid: string;
   sessionNodeId: string;
   name: string;
   endpointUrl: string;

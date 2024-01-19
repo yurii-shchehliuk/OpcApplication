@@ -4,8 +4,8 @@ namespace QIA.Opc.Domain.Responses
 {
 	public class SubscriptionValue
 	{
-		public string SubscriptionGuidId { get; set; }
-		public uint OpcUaId { get; set; } = 0; 
+		public string Guid { get; set; }
+		public uint OpcUaId { get; set; } = 0;
 		public string DisplayName { get; set; }
 		public int PublishingInterval { get; set; }
 		public uint ItemsCount { get; set; }

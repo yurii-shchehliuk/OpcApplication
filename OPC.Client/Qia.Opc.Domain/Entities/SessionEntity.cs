@@ -6,7 +6,7 @@ namespace Qia.Opc.Domain.Entities
 {
 	public class SessionEntity : IBaseEntity
 	{
-		public string SessionGuidId { get; set; }
+		public string Guid { get; set; }
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 		public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
 		public DateTime? LastAccessed { get; set; }

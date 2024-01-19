@@ -12,6 +12,7 @@ import {
 import { MonitoredItemConfig } from '../models/monitoredItem';
 import { NotificationService } from '../shared/notification.service';
 import { SessionState } from '../models/enums';
+import { SharedService } from '../shared/shared.service';
 
 @Injectable({
   providedIn: 'root',
@@ -26,21 +27,14 @@ export class SubscriptionService {
 
   constructor(
     private http: HttpClient,
-    private communicationService: CommunicationService,
     private sessionAccessor: SessionAccessorService,
     private notification: NotificationService
   ) {
     this.sessionAccessor.currentSession$.subscribe({
       next: (value) => {
         this.currentSession = value;
-        if (value.state === SessionState.connected)
-          this.getActiveSubscriptions();
       },
     });
-  }
-
-  get newSubscription$(): Observable<SubscriptionValue> {
-    return this.communicationService.subscriptionObservable;
   }
 
   get subscriptionToRemove$(): Observable<string> {
@@ -59,7 +53,7 @@ export class SubscriptionService {
 
     let url = `${this.baseUrl}create?${queryParams}`;
     return this.http.post<MonitoredItemConfig>(url, subsParams).subscribe({
-      next(value) {},
+      next: (value) => {},
       error: (err) => {
         this.notification.showError(err.error, '');
         console.error(err);
@@ -67,20 +61,20 @@ export class SubscriptionService {
     });
   }
 
-  deleteSubs(subscription: SubscriptionValue) {
+  getActiveSubscriptions() {
     const queryParams = new URLSearchParams({
-      subscriptionGuidId: subscription.subscriptionGuidId,
       sessionNodeId: this.currentSession.sessionNodeId,
     }).toString();
 
-    let url = `${this.baseUrl}delete/${subscription.opcUaId}?${queryParams}`;
-    return this.http.delete(url);
+    let url = `${this.baseUrl}list?${queryParams}`;
+    return this.http.get<SubscriptionValue[]>(url);
   }
 
+  //todo:
   getSubscriptionConfig(subscription: any) {
     const queryParams = new URLSearchParams({
       sessionNodeId: this.currentSession.sessionNodeId,
-      subscriptionGuidId: subscription.subscriptionGuidId,
+      subscriptionGuid: subscription.guid,
     }).toString();
 
     let url = `${this.baseUrl}${subscription.opcUaId}?${queryParams}`;
@@ -91,7 +85,7 @@ export class SubscriptionService {
     const queryParams = new URLSearchParams({
       sessionNodeId: this.currentSession.sessionNodeId,
     }).toString();
-    
+
     let url = `${this.baseUrl}modify?${queryParams}`;
     return this.http.put(url, subscriptionParams).subscribe();
   }
@@ -100,17 +94,27 @@ export class SubscriptionService {
     const queryParams = new URLSearchParams({
       sessionNodeId: this.currentSession.sessionNodeId,
     }).toString();
-    
+
     let url = `${this.baseUrl}setPublishingMode/${subscription.opcUaId}?${queryParams}`;
-    return this.http.put(url, subscription).subscribe();
+    return this.http.put<SubscriptionValue>(url, subscription);
   }
 
-  getActiveSubscriptions() {
+  stopAllSubscriptions() {
     const queryParams = new URLSearchParams({
       sessionNodeId: this.currentSession.sessionNodeId,
     }).toString();
-    
-    let url = `${this.baseUrl}list?${queryParams}`;
-    return this.http.get(url).subscribe();
+
+    let url = `${this.baseUrl}stopAll?${queryParams}`;
+    return this.http.put(url, null);
+  }
+
+  deleteSubs(subscription: SubscriptionValue) {
+    const queryParams = new URLSearchParams({
+      subscriptionGuid: subscription.guid,
+      sessionNodeId: this.currentSession.sessionNodeId,
+    }).toString();
+
+    let url = `${this.baseUrl}delete/${subscription.opcUaId}?${queryParams}`;
+    return this.http.delete(url);
   }
 }

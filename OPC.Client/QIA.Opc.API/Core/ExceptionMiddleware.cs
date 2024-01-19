@@ -1,6 +1,5 @@
-﻿using MediatR;
-using Newtonsoft.Json;
-using Qia.Opc.Domain.Core;
+﻿using Newtonsoft.Json;
+using QIA.Opc.Domain.Common;
 
 namespace QIA.Opc.API.Core
 {

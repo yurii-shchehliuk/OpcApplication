@@ -1,7 +1,7 @@
 ﻿using MediatR;
-using Qia.Opc.Domain.Common;
-using Qia.Opc.Domain.Core;
 using Qia.Opc.OPCUA.Connector.Managers;
+using QIA.Opc.Domain.Common;
+using QIA.Opc.Domain.Entities;
 using QIA.Opc.Infrastructure.Services.Communication;
 
 namespace Qia.Opc.Infrastructure.Application

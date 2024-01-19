@@ -2,6 +2,7 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { SubscriptionConfig } from 'src/app/models/subscriptionModels';
+import { SharedService } from 'src/app/shared/shared.service';
 import { SubscriptionService } from 'src/app/services/subscription.service';
 
 export interface income {
@@ -20,13 +21,16 @@ export class SubscriptionParametersDialogComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private subscriptionService: SubscriptionService,
+    private sharedService: SharedService,
     public dialogRef: MatDialogRef<SubscriptionParametersDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: income
   ) {
     this.subscriptionParametersForm = this.fb.group({
       opcUaId: [0],
-      subscriptionGuidId: [''],
+      guid: [''],
       displayName: ['', Validators.required],
+      maxValue: [0, Validators.required],
+      minValue: [0, Validators.required],
       publishingInterval: [1000, Validators.required],
       keepAliveCount: [10, Validators.required],
       lifetimeCount: [1000, Validators.required],
@@ -46,11 +50,13 @@ export class SubscriptionParametersDialogComponent implements OnInit {
           next: (paramaters: SubscriptionConfig) => {
             this.subscriptionParametersForm = this.fb.group({
               opcUaId: [this.data.subscription.opcUaId],
-              subscriptionGuidId: [
-                this.data.subscription.subscriptionGuidId ??
-                  paramaters?.subscriptionGuidId,
+              guid: [
+                this.data.subscription.guid ??
+                  paramaters?.guid,
               ],
               displayName: [paramaters?.displayName ?? '', Validators.required],
+              maxValue: [paramaters?.maxValue ?? 0, Validators.required],
+              minValue: [paramaters?.minValue ?? 0, Validators.required],
               publishingInterval: [
                 paramaters?.publishingInterval ?? 1000,
                 Validators.required,
@@ -95,10 +101,18 @@ export class SubscriptionParametersDialogComponent implements OnInit {
       this.subscriptionParametersForm.value as SubscriptionConfig,
       this.data.nodeId
     );
+    this.updateChart();
   }
 
   private modifySubscription() {
     this.subscriptionService.modifySubs(
+      this.subscriptionParametersForm.value as SubscriptionConfig
+    );
+    this.updateChart();
+  }
+
+  private updateChart() {
+    this.sharedService.updateChart(
       this.subscriptionParametersForm.value as SubscriptionConfig
     );
   }

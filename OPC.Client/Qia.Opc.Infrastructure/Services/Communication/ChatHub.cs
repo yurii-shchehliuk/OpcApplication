@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http.Connections.Features;
 using Microsoft.AspNetCore.SignalR;
-using Qia.Opc.Domain.Core;
+using QIA.Opc.Domain.Common;
 
 namespace QIA.Opc.Infrastructure.Services.Communication
 {

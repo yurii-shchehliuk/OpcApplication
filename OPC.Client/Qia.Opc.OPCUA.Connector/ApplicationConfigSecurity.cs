@@ -5,7 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 namespace Qia.Opc.OPCUA.Connector
 {
 	using global::Opc.Ua.Security.Certificates;
-	using Qia.Opc.Domain.Core;
+	using QIA.Opc.Domain.Common;
 	using System.Collections.Generic;
 	using System.IO;
 	using System.Threading.Tasks;

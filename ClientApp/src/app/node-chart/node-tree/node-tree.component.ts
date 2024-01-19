@@ -56,17 +56,20 @@ export class NodeTreeComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.subscriptionService.newSubscription$.subscribe({
-      next: (value: SubscriptionValue) => {
-        const index = this.subscriptionsArr.findIndex(
-          (sub) => sub.opcUaId === value.opcUaId
-        );
-
-        if (index !== -1) {
-          this.subscriptionsArr[index] = value;
-        } else {
-          this.subscriptionsArr.push(value);
-        }
+    this.subscriptionService.getActiveSubscriptions().subscribe({
+      next: (subsValArr: SubscriptionValue[]) => {
+        subsValArr.map((value) => {
+          const index = this.subscriptionsArr.findIndex(
+            (sub) => sub.guid === value.guid
+          );
+          if (index !== -1) {
+            this.subscriptionsArr[index] = value;
+          } else {
+            this.subscriptionsArr.push(value);
+          }
+        });
+        // event.stopPropagation();
+        // event.preventDefault();
       },
     });
 

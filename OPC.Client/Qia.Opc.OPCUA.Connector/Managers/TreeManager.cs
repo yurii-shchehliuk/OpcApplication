@@ -2,8 +2,8 @@
 using Opc.Ua;
 using Opc.Ua.Client;
 using Qia.Opc.Domain.Common;
-using Qia.Opc.Domain.Core;
 using Qia.Opc.Domain.Entities;
+using QIA.Opc.Domain.Common;
 
 namespace Qia.Opc.OPCUA.Connector.Managers
 {
@@ -25,9 +25,9 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		/// <summary>
 		/// Browse server's data tree
 		/// </summary>
-		public async Task<TreeNode> BrowseTreeAsync(string sessionGuidId)
+		public async Task<TreeNode> BrowseTreeAsync(string sessionGuid)
 		{
-			sessionManager.TryGetSession(sessionGuidId, out var session);
+			sessionManager.TryGetSession(sessionGuid, out var session);
 
 			LoggerManager.Logger.Information($"Parsing full tree started for {session.Name}");
 			session.Session.Browse(null, null, ObjectIds.ObjectsFolder, 0u, BrowseDirection.Forward,
@@ -77,9 +77,9 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 		}
 
-		public TreeNode BrowseChildren(string sessionGuidId, TreeNode treeNode)
+		public TreeNode BrowseChildren(string sessionGuid, TreeNode treeNode)
 		{
-			sessionManager.TryGetSession(sessionGuidId, out var session);
+			sessionManager.TryGetSession(sessionGuid, out var session);
 			Browser browser = new Browser(session.Session)
 			{
 				BrowseDirection = BrowseDirection.Forward,

@@ -10,9 +10,13 @@ namespace Qia.Opc.Persistence
 	{
 		public void Configure(EntityTypeBuilder<SessionEntity> builder)
 		{
-			builder.HasKey(s => s.SessionGuidId);
-			builder.HasIndex(e => e.SessionGuidId).IsUnique();
+			builder.HasKey(s => s.Guid);
 			builder.Ignore(c => c.State);
+
+			builder.HasMany(c => c.SubscriptionConfigs)
+				   .WithOne()
+				   .HasForeignKey(sc => sc.SessionGuid)
+				   .OnDelete(DeleteBehavior.Cascade);
 		}
 	}
 
@@ -20,27 +24,28 @@ namespace Qia.Opc.Persistence
 	{
 		public void Configure(EntityTypeBuilder<SubscriptionConfig> builder)
 		{
-			builder.HasKey(s => s.SubscriptionGuidId);
-			builder.HasIndex(e => e.SubscriptionGuidId).IsUnique();
+			builder.HasKey(s => s.Guid);
 
-			builder.HasOne(c => c.Session)
-					.WithMany(c => c.SubscriptionConfigs)
-			   .HasForeignKey(c => c.SessionGuidId)
-					.OnDelete(DeleteBehavior.Cascade);
+			builder.HasMany(s => s.MonitoredItemsConfig)
+				   .WithOne()
+				   .HasForeignKey(mic => mic.SubscriptionGuid)
+				   .OnDelete(DeleteBehavior.Cascade);
+
+			builder.HasMany(s => s.MonitoredItemsValue)
+				   .WithOne()
+				   .HasForeignKey(miv => miv.SubscriptionGuid)
+				   .OnDelete(DeleteBehavior.Cascade);
 		}
 	}
-
 
 	public class MonitoredItemConfigEntity : IEntityTypeConfiguration<MonitoredItemConfig>
 	{
 		public void Configure(EntityTypeBuilder<MonitoredItemConfig> builder)
 		{
-			builder.HasKey(e => e.GuidId);
+			builder.HasKey(e => e.Guid);
+			builder.Property(e => e.Guid).ValueGeneratedOnAdd();
+
 			builder.HasIndex(e => e.StartNodeId);
-			builder.HasOne(c => c.Subscription)
-					.WithMany(c => c.MonitoredItemsConfig)
-					.HasForeignKey(c => c.SubscriptionGuidId)
-					.OnDelete(DeleteBehavior.Cascade);
 		}
 	}
 
@@ -48,7 +53,7 @@ namespace Qia.Opc.Persistence
 	{
 		public void Configure(EntityTypeBuilder<MonitoredItemValue> builder)
 		{
-			//builder.ToTable(StaticSettings.GetTargetTbl);
+			builder.ToTable(StaticSettings.NodeValuesTblName);
 			builder.HasKey(e => e.ServerId);
 			builder.HasIndex(e => e.StartNodeId);
 		}

@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Qia.Opc.Domain.Core;
-using Qia.Opc.Domain.Entities;
+using QIA.Opc.Domain.Common;
 using QIA.Opc.Domain.Requests;
 using QIA.Opc.Infrastructure.Services.OPCUA;
 using System.Web;
@@ -63,6 +62,22 @@ namespace QIA.Opc.API.Controllers
 			}
 		}
 
+		[HttpPut("update")]
+		public IActionResult UpdateMonitoredItem([FromQuery] string sessionNodeId, uint subscriptionId, [FromBody] MonitoredItemRequest updatedItem)
+		{
+			try
+			{
+				var updatedSessionResponse = monitoredItemService.UpdateMonitoredItem(sessionNodeId, subscriptionId, updatedItem);
+
+				return HandleResponse(updatedSessionResponse);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("{0}", ex);
+				throw;
+			}
+		}
+
 		[HttpDelete("delete")]
 		public IActionResult DeleteMonitoringItem([FromQuery] string nodeId, string sessionNodeId, uint subscriptionId)
 		{
@@ -72,22 +87,6 @@ namespace QIA.Opc.API.Controllers
 				var response = monitoredItemService.DeleteMonitoringItem(sessionNodeId, subscriptionId, nodeId);
 
 				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
-
-		[HttpPut("update")]
-		public IActionResult UpdateMonitoredItem([FromQuery] string sessionNodeId, uint subscriptionId, [FromBody] MonitoredItemRequest updatedItem)
-		{
-			try
-			{
-				var updatedSessionResponse = monitoredItemService.UpdateMonitoredItem(sessionNodeId, subscriptionId, updatedItem);
-
-				return HandleResponse(updatedSessionResponse);
 			}
 			catch (Exception ex)
 			{

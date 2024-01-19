@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using QIA.Opc.Domain.Common;
 using System.Net;
 
 namespace Qia.Opc.Domain.Core
@@ -33,6 +34,8 @@ namespace Qia.Opc.Domain.Core
 
 		public static ApiResponse<T> Failure(HttpStatusCode status, string error = "", T value = default)
 		{
+			//TODO: add fail importance level
+
 			if (string.IsNullOrEmpty(error))
 				error = GetDefaultMessageForStatusCode((int)status);
 

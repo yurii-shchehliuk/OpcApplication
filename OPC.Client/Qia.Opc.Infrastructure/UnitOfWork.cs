@@ -1,9 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Qia.Opc.Domain.Entities.Interfaces;
 using Qia.Opc.Persistence;
-using QIA.Opc.Domain;
-using QIA.Opc.Domain.Repository;
-using QIA.Opc.Infrastructure.Repositories;
 
 namespace QIA.Opc.Infrastructure
 {

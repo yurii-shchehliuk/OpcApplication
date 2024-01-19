@@ -1,7 +1,7 @@
 export interface RequestObject {
   sessionNodeId: string;
-  sessionGuidId: string;
-  subscriptionGuidId: string;
+  sessionGuid: string;
+  subscriptionGuid: string;
   opcUaId: number;
   nodeId: string;
   newValue: any;

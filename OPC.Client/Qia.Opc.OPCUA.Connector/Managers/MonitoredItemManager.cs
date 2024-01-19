@@ -1,8 +1,7 @@
 ﻿using Opc.Ua;
 using Opc.Ua.Client;
-using Qia.Opc.Domain.Core;
-using Qia.Opc.Domain.Entities;
 using Qia.Opc.OPCUA.Connector.Managers;
+using QIA.Opc.Domain.Common;
 using QIA.Opc.Domain.Requests;
 
 namespace QIA.Opc.OPCUA.Connector.Managers
@@ -16,9 +15,9 @@ namespace QIA.Opc.OPCUA.Connector.Managers
 			this.sessionManager = sessionManager;
 		}
 
-		public MonitoredItem AddToSubscription(string sessionGuidId, uint subscriptionId, string nodeId)
+		public MonitoredItem AddToSubscription(string sessionGuid, uint subscriptionId, string nodeId)
 		{
-			sessionManager.TryGetSession(sessionGuidId, out var session);
+			sessionManager.TryGetSession(sessionGuid, out var session);
 
 			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
 			if (subscription == null) return null;
@@ -26,16 +25,16 @@ namespace QIA.Opc.OPCUA.Connector.Managers
 			return AddMonitoredItem(session.Session, subscription, nodeId);
 		}
 
-		public MonitoredItem AddToSubscription(string sessionGuidId, Subscription subscription, string nodeId)
+		public MonitoredItem AddToSubscription(string sessionGuid, Subscription subscription, string nodeId)
 		{
-			sessionManager.TryGetSession(sessionGuidId, out var session);
+			sessionManager.TryGetSession(sessionGuid, out var session);
 
 			return AddMonitoredItem(session.Session, subscription, nodeId);
 		}
 
-		public MonitoredItem GetMonitoringItem(string sessionGuidId, uint subscriptionId, string nodeId)
+		public MonitoredItem GetMonitoringItem(string sessionGuid, uint subscriptionId, string nodeId)
 		{
-			sessionManager.TryGetSession(sessionGuidId, out var session);
+			sessionManager.TryGetSession(sessionGuid, out var session);
 			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
 			if (subscription == null) return null;
 
@@ -44,22 +43,21 @@ namespace QIA.Opc.OPCUA.Connector.Managers
 			return monItem;
 		}
 
-		public bool DeleteMonitoringItem(string sessionGuidId, uint subscriptionId, string nodeId)
+		public MonitoredItem DeleteMonitoringItem(string sessionGuid, uint subscriptionId, string nodeId)
 		{
-			sessionManager.TryGetSession(sessionGuidId, out var session);
+			sessionManager.TryGetSession(sessionGuid, out var session);
 			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
-			if (subscription == null) return false;
+			if (subscription == null) return null;
 
 			var monItem = subscription.MonitoredItems.FirstOrDefault(c => c.StartNodeId.ToString() == nodeId);
 			subscription.RemoveItem(monItem);
 			subscription.ApplyChanges();
-			return true;
-
+			return monItem;
 		}
 
-		public bool UpdateMonitoredItem(string sessionGuidId, MonitoredItemRequest updatedItem, uint subscriptionId)
+		public bool UpdateMonitoredItem(string sessionGuid, MonitoredItemRequest updatedItem, uint subscriptionId)
 		{
-			sessionManager.TryGetSession(sessionGuidId, out var session);
+			sessionManager.TryGetSession(sessionGuid, out var session);
 
 			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
 			if (subscription == null) return false;

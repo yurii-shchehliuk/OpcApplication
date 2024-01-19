@@ -1,7 +1,7 @@
 import { MonitoredItemValue } from './monitoredItem';
 
 export interface SubscriptionValue {
-  subscriptionGuidId: string;
+  guid: string;
   opcUaId: number;
   displayName: string;
   publishingInterval: number;
@@ -12,9 +12,11 @@ export interface SubscriptionValue {
 }
 
 export interface SubscriptionConfig {
-  subscriptionGuidId: string;
+  guid: string;
   opcUaId: number;
   displayName: string;
+  minValue: number;
+  maxValue: number;
   publishingInterval: number;
   keepAliveCount: number;
   lifetimeCount: number;

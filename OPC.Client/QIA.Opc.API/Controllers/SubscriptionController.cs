@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Qia.Opc.Domain.Core;
+using QIA.Opc.Domain.Common;
 using QIA.Opc.Domain.Entities;
 using QIA.Opc.Domain.Requests;
 using QIA.Opc.Domain.Responses;
@@ -34,12 +34,12 @@ namespace QIA.Opc.API.Controllers
 			}
 		}
 
-		[HttpDelete("delete/{subscriptionId}")]
-		public async Task<IActionResult> DeleteSubscription([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, string subscriptionGuidId)
+		[HttpGet("list")]
+		public async Task<ActionResult<IEnumerable<SubscriptionValue>>> GetSubscriptions([FromQuery] string sessionNodeId)
 		{
 			try
 			{
-				var response = await subscriptionService.DeleteSubscriptionAsync(sessionNodeId, subscriptionId, subscriptionGuidId);
+				var response = await subscriptionService.GetSubscriptions(sessionNodeId);
 
 				return HandleResponse(response);
 			}
@@ -51,11 +51,11 @@ namespace QIA.Opc.API.Controllers
 		}
 
 		[HttpGet("{subscriptionId}")]
-		public async Task<IActionResult> GetSubscriptionConfig([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, string subscriptionGuidId)
+		public async Task<ActionResult<SubscriptionConfig>> GetSubscriptionConfig([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, string subscriptionGuid)
 		{
 			try
 			{
-				var response = await subscriptionService.GetSubscriptionConfig(sessionNodeId, subscriptionId, subscriptionGuidId);
+				var response = await subscriptionService.GetSubscriptionConfig(sessionNodeId, subscriptionId, subscriptionGuid);
 
 				return HandleResponse(response);
 			}
@@ -83,17 +83,17 @@ namespace QIA.Opc.API.Controllers
 		}
 
 		[HttpPut("setPublishingMode/{subscriptionId}")]
-		public async Task<IActionResult> SetPublishingMode([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, [FromBody] SubscriptionRequest request)
+		public async Task<ActionResult<SubscriptionValue>> SetPublishingMode([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, [FromBody] SubscriptionRequest request)
 		{
 			try
 			{
 				var response = subscriptionService.SetPublishingMode(sessionNodeId, subscriptionId, request.PublishingEnabled);
 				// if subscription is not activated, create a new one from database
-				if (!response.IsSuccess)
+				if (response.Value == null)
 				{
-					response = await subscriptionService.SubscribeFromModel(sessionNodeId, request);
+					response = await subscriptionService.SubscribeFromDbModel(sessionNodeId, request);
 				}
-				// if creation form db fails, throw error
+				response.Value.Guid = request.Guid;
 
 				return HandleResponse(response);
 			}
@@ -104,12 +104,28 @@ namespace QIA.Opc.API.Controllers
 			}
 		}
 
-		[HttpGet("list")]
-		public async Task<IActionResult> GetSubscriptions([FromQuery] string sessionNodeId)
+		[HttpPut("stopAll")]
+		public async Task<IActionResult> StopAllSubscriptions([FromQuery] string sessionNodeId)
 		{
 			try
 			{
-				var response = await subscriptionService.GetSubscriptions(sessionNodeId);
+				var response = subscriptionService.StopAllSubscriptions(sessionNodeId);
+				
+				return HandleResponse(response);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("{0}", ex);
+				throw;
+			}
+		}
+
+		[HttpDelete("delete/{subscriptionId}")]
+		public async Task<IActionResult> DeleteSubscription([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, string subscriptionGuid)
+		{
+			try
+			{
+				var response = await subscriptionService.DeleteSubscriptionAsync(sessionNodeId, subscriptionId, subscriptionGuid);
 
 				return HandleResponse(response);
 			}
@@ -119,5 +135,6 @@ namespace QIA.Opc.API.Controllers
 				throw;
 			}
 		}
+
 	}
 }

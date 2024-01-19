@@ -20,10 +20,5 @@ namespace QIA.Opc.Infrastructure.Services.Communication
 		{
 			await _hubConnection.Clients.Group(groupName).SendAsync("SendSubscriptionAction", subscriptionData);
 		}
-
-		public async Task SendEventMessageAsync(object eventData, string groupName)
-		{
-			await _hubConnection.Clients.Group(groupName).SendAsync("SendEventMessageAction", eventData);
-		}
 	}
 }

@@ -27,6 +27,7 @@ export class SubscriptionComponent implements OnInit {
   constructor(
     private sessionAccessor: SessionAccessorService,
     private subscriptionService: SubscriptionService,
+    private communicationService: CommunicationService,
     private nodeService: NodeService,
     private monitoredItemSvs: MonitoredItemService,
     private notificationService: NotificationService,
@@ -34,21 +35,38 @@ export class SubscriptionComponent implements OnInit {
   ) {
     this.sessionAccessor.currentSession$.subscribe((res) => {
       this.subscriptionsArr = [];
+      //get subscriptions on session connected
+      this.subscriptionService.getActiveSubscriptions().subscribe({
+        next: (subsValArr: SubscriptionValue[]) => {
+          subsValArr.map((value) => {
+            const index = this.subscriptionsArr.findIndex(
+              (sub) => sub.guid === value.guid
+            );
+            if (index !== -1) {
+              this.subscriptionsArr[index] = value;
+            } else {
+              this.subscriptionsArr.push(value);
+            }
+          });
+          // event.stopPropagation();
+          // event.preventDefault();
+        },
+      });
     });
   }
 
   ngOnInit(): void {
-    this.subscriptionService.newSubscription$.subscribe({
+    //get subscription on monitoring
+    this.communicationService.subscriptionObservable.subscribe({
       next: (value: SubscriptionValue) => {
         const index = this.subscriptionsArr.findIndex(
-          (sub) => sub.opcUaId === value.opcUaId
+          (sub) => sub.guid === value.guid
         );
         if (index !== -1) {
           this.subscriptionsArr[index] = value;
         } else {
           this.subscriptionsArr.push(value);
         }
-
         // event.stopPropagation();
         // event.preventDefault();
       },
@@ -75,8 +93,6 @@ export class SubscriptionComponent implements OnInit {
   }
 
   modifySubscription(subscription: SubscriptionValue) {
-    console.log('modifySubscription');
-
     const subscriptionDialog = this.dialog.open(
       SubscriptionParametersDialogComponent,
       {
@@ -88,6 +104,16 @@ export class SubscriptionComponent implements OnInit {
     );
     subscriptionDialog.afterClosed().subscribe((result) => {
       this.newNode.startNodeId = '';
+    });
+  }
+
+  stopAllSubscriptions() {
+    this.subscriptionService.stopAllSubscriptions().subscribe({
+      next: () => {
+        this.subscriptionsArr.map((item) => {
+          item.publishingEnabled = false;
+        });
+      },
     });
   }
 
@@ -144,15 +170,26 @@ export class SubscriptionComponent implements OnInit {
     console.log('setPublishingMode');
     event.stopPropagation();
     event.preventDefault();
+
     // update model
     subscription.publishingEnabled = !subscription.publishingEnabled;
-    this.subscriptionService.setPublishingMode(subscription);
-    //unexpected:
-    console.log(subscription);
+    this.subscriptionService.setPublishingMode(subscription).subscribe({
+      next: (value: SubscriptionValue) => {
+        if (value.guid == null) {
+          console.error('subscription guid is null');
+          this.subscriptionsArr.push(value);
+          return;
+        }
 
-    if (subscription.opcUaId == 0) {
-      let index = this.subscriptionsArr.findIndex((c) => c === subscription);
-      this.subscriptionsArr.splice(index, 1);
-    }
+        const index = this.subscriptionsArr.findIndex(
+          (sub) => sub.guid === value.guid
+        );
+        if (index !== -1) {
+          this.subscriptionsArr[index] = value;
+        } else {
+          this.subscriptionsArr.push(value);
+        }
+      },
+    });
   }
 }

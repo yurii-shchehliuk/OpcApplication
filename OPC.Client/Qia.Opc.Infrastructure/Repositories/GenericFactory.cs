@@ -2,7 +2,6 @@
 using Qia.Opc.Persistence;
 using QIA.Opc.Domain.Repository;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace QIA.Opc.Infrastructure.Repositories
 {
@@ -13,6 +12,15 @@ namespace QIA.Opc.Infrastructure.Repositories
 		public GenericRepository(IDbContextFactory<OpcDbContext> contextFactory)
 		{
 			_contextFactory = contextFactory;
+		}
+
+		public virtual async Task<T> AddAsync(T entity)
+		{
+			using var _context = _contextFactory.CreateDbContext();
+			await _context.Set<T>().AddAsync(entity);
+			await _context.SaveChangesAsync();
+
+			return entity;
 		}
 
 		public virtual async Task<T> FindAsync(Expression<Func<T, bool>> filter, bool asNoTracking = false, params Expression<Func<T, object>>[] includes)
@@ -84,21 +92,22 @@ namespace QIA.Opc.Infrastructure.Repositories
 
 		public virtual async Task DeleteAsync(T entity)
 		{
-
 			using var _context = _contextFactory.CreateDbContext();
 			if (entity == null) return;
+
 			_context.Set<T>().Remove(entity);
 			await _context.SaveChangesAsync();
-
 		}
 
-		public virtual async Task<T> AddAsync(T entity)
+		public virtual async Task DeleteAsync(Expression<Func<T, bool>> filter)
 		{
 			using var _context = _contextFactory.CreateDbContext();
-			await _context.Set<T>().AddAsync(entity);
+			var result = await _context.Set<T>().FirstOrDefaultAsync(filter);
+
+			if (result == null) return;
+			_context.Set<T>().Remove(result);
 			await _context.SaveChangesAsync();
 
-			return entity;
 		}
 
 		public async Task SaveChangesAsync()

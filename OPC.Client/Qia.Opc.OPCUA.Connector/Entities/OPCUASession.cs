@@ -13,7 +13,7 @@ namespace Qia.Opc.OPCUA.Connector.Entities
 		/// <summary>
 		/// key to session entity
 		/// </summary>
-		public string SessionGuidId { get; set; }
+		public string Guid { get; set; }
 		public string EndpointUrl { get; set; }
 		public Session Session { get; set; }
 		public SessionState State { get; set; } = SessionState.Disconnected;

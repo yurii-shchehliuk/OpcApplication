@@ -21,6 +21,7 @@
     "lib": ["ES2022", "dom"],
     "strictPropertyInitialization": false,
     "noImplicitAny": true,
+    "allowSyntheticDefaultImports": true,
     "strict": true
   },
   "angularCompilerOptions": {

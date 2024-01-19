@@ -1,9 +1,9 @@
 ﻿using AutoMapper;
 using Opc.Ua;
 using Opc.Ua.Client;
-using Qia.Opc.Domain.Core;
 using Qia.Opc.Domain.Entities;
 using Qia.Opc.OPCUA.Connector.Entities;
+using QIA.Opc.Domain.Common;
 using QIA.Opc.Domain.Entities;
 using QIA.Opc.Domain.Requests;
 using QIA.Opc.Domain.Responses;
@@ -24,12 +24,14 @@ namespace QIA.Opc.Infrastructure.Application
 		private void MapSessions()
 		{
 			CreateMap<OPCUASession, SessionResponse>()
+			  .ForMember(dest => dest.Guid, opt => opt.MapFrom(src => src.Guid))
 			  .ForMember(dest => dest.SessionNodeId, opt => opt.MapFrom(src => src.SessionNodeId))
-			  .ForMember(dest => dest.SessionGuidId, opt => opt.MapFrom(src => src.SessionGuidId))
+			  .ForMember(dest => dest.Guid, opt => opt.MapFrom(src => src.Guid))
 			  .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.Name))
 			  .ForMember(dest => dest.EndpointUrl, opt => opt.MapFrom(src => src.EndpointUrl));
 
-			CreateMap<SessionEntity, SessionResponse>();
+			CreateMap<SessionEntity, SessionResponse>()
+			  .ForMember(dest => dest.Guid, opt => opt.MapFrom(src => src.Guid));
 		}
 
 		private void MapSubscriptions()
@@ -38,14 +40,14 @@ namespace QIA.Opc.Infrastructure.Application
 			CreateMap<Subscription, SubscriptionConfig>()
 					.ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.DisplayName))
 					.ForMember(dest => dest.PublishingInterval, opt => opt.MapFrom(src => src.PublishingInterval))
-					.ForMember(dest => dest.MonitoredItemsConfig, opt => opt.MapFrom(src => src.MonitoredItems))
-					.ForMember(dest => dest.Session, opt => opt.Ignore());
+					.ForMember(dest => dest.MonitoredItemsConfig, opt => opt.MapFrom(src => src.MonitoredItems));
 
 			// on create to send value
 			CreateMap<Subscription, SubscriptionValue>()
+				.ForMember(dest => dest.OpcUaId, opt => opt.MapFrom(src => src.Id.ToString()))
 				.ForMember(dest => dest.SessionNodeId, opt => opt.MapFrom(src => src.Session.SessionId.ToString()))
 				.ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.DisplayName))
-				.ForMember(dest => dest.PublishingEnabled, opt => opt.MapFrom(src => true))
+				.ForMember(dest => dest.PublishingEnabled, opt => opt.MapFrom(src => src.PublishingEnabled))
 				.ForMember(dest => dest.PublishingInterval, opt => opt.MapFrom(src => src.PublishingInterval))
 				.ForMember(dest => dest.ItemsCount, opt => opt.MapFrom(src => src.MonitoredItemCount))
 				.ForMember(dest => dest.SequenceNumber, opt => opt.MapFrom(src => src.SequenceNumber))
@@ -53,6 +55,7 @@ namespace QIA.Opc.Infrastructure.Application
 
 			// on get from database
 			CreateMap<SubscriptionConfig, SubscriptionValue>()
+				.ForMember(dest => dest.Guid, opt => opt.MapFrom(src => src.Guid))
 				.ForMember(dest => dest.OpcUaId, opt => opt.MapFrom(src => 0))
 				.ForMember(dest => dest.MonitoredItems, opt => opt.MapFrom(src => src.MonitoredItemsConfig))
 				.ForMember(dest => dest.PublishingEnabled, opt => opt.MapFrom(src => false))
@@ -61,9 +64,9 @@ namespace QIA.Opc.Infrastructure.Application
 			// on get from memory
 			CreateMap<OPCUASubscription, SubscriptionValue>()
 				.ForMember(dest => dest.OpcUaId, opt => opt.MapFrom(src => src.Subscription.Id))
-				.ForMember(dest => dest.SubscriptionGuidId, opt => opt.MapFrom(src => src.SubscriptionGuidId))
+				.ForMember(dest => dest.Guid, opt => opt.MapFrom(src => src.Guid))
 				.ForMember(dest => dest.MonitoredItems, opt => opt.MapFrom(src => src.Subscription.MonitoredItems))
-				.ForMember(dest => dest.PublishingEnabled, opt => opt.MapFrom(src => false))
+				.ForMember(dest => dest.PublishingEnabled, opt => opt.MapFrom(src => src.Subscription.PublishingEnabled))
 				.ForMember(dest => dest.DisplayName, opt => opt.MapFrom(src => src.Subscription.DisplayName))
 				.ForMember(dest => dest.PublishingInterval, opt => opt.MapFrom(src => src.Subscription.PublishingInterval))
 				.ForMember(dest => dest.SequenceNumber, opt => opt.MapFrom(src => src.Subscription.SequenceNumber))
@@ -113,6 +116,9 @@ namespace QIA.Opc.Infrastructure.Application
 				var result = item.DequeueValues();
 				if (result.Count == 0)
 				{
+					if (item.LastValue == null)
+						return "0";
+
 					var data = (item.LastValue as dynamic).Value.Value.ToString();
 					return data ?? "0";
 				}

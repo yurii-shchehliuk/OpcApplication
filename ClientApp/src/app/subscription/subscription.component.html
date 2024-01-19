@@ -1,18 +1,25 @@
 <section class="container">
-    <div class="container-details">
-        <div class="pl-1">
-            <h4>Add node to subscription</h4>
-            <!-- <div class="actions">
-                <mat-icon>save</mat-icon>
-            </div> -->
+    <div class="container-details d-flex justify-content-between">
+        <div class="">
+            <div class="pl-1">
+                <h4>Add node to subscription</h4>
+                <!-- <div class="actions">
+                    <mat-icon>save</mat-icon>
+                </div> -->
+            </div>
+            <div class="newNode">
+                <mat-form-field>
+                    <mat-label>Node Id</mat-label>
+                    <input matInput [(ngModel)]="newNode.startNodeId" required>
+                </mat-form-field>
+                <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Example icon-button with a menu">
+                    <mat-icon>more_vert</mat-icon>
+                </button>
+            </div>
         </div>
-        <div class="newNode">
-            <mat-form-field>
-                <mat-label>Node Id</mat-label>
-                <input matInput [(ngModel)]="newNode.startNodeId" required>
-            </mat-form-field>
-            <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Example icon-button with a menu">
-                <mat-icon>more_vert</mat-icon>
+        <div class="f-right">
+            <button mat-icon-button (click)="stopAllSubscriptions()" matTooltip="Stop all" matTooltipPosition="above">
+                <i class="bi bi-stop-circle-fill"></i>
             </button>
         </div>
     </div>

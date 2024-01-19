@@ -1,11 +1,22 @@
 import { Component } from '@angular/core';
-import { Chart, ChartDataset, ChartConfiguration } from 'chart.js';
+import {
+  Chart,
+  ChartDataset,
+  ChartConfiguration,
+  registerables,
+} from 'chart.js';
 import { Subscription } from 'rxjs';
 import { NodeService } from '../services/node.service';
 import { SessionEntity } from '../models/sessionModels';
 import { SessionAccessorService } from '../shared/session-accessor.service';
-import { MonitoredItemConfig, MonitoredItemValue } from '../models/monitoredItem';
+import {
+  MonitoredItemConfig,
+  MonitoredItemValue,
+} from '../models/monitoredItem';
 import { SessionState } from '../models/enums';
+import annotationPlugin from 'chartjs-plugin-annotation';
+import { SharedService } from '../shared/shared.service';
+import { SubscriptionConfig } from '../models/subscriptionModels';
 
 @Component({
   selector: 'app-node-chart',
@@ -14,17 +25,22 @@ import { SessionState } from '../models/enums';
 })
 export class NodeChartComponent {
   chart: Chart;
-  nodeArray: MonitoredItemConfig[] = [];
   datasets: ChartDataset[] = [];
   labels: string[] = [];
+  minLineValue: number = 0;
+  maxLineValue: number = 0;
   sessionSource: SessionEntity = (<Partial<SessionEntity>>{}) as SessionEntity;
   sessionState = SessionState;
+  nodeArray: MonitoredItemConfig[] = [];
   subscriptions: Subscription[] = [];
 
   constructor(
     private sessionAccessor: SessionAccessorService,
-    private nodeService: NodeService
-  ) {}
+    private nodeService: NodeService,
+    private sharedService: SharedService
+  ) {
+    Chart.register(...registerables, annotationPlugin);
+  }
 
   ngOnInit() {
     this.createChart();
@@ -47,13 +63,21 @@ export class NodeChartComponent {
       }
     );
 
+    // Remove node from the subscription then from the dataset
     this.nodeService.nodeToRemove$.subscribe({
       next: (nodeId: string) => {
-        let datasetIndex = this.datasets.findIndex(
-          (c) => c.label === nodeId
-        );
+        let datasetIndex = this.datasets.findIndex((c) => c.label === nodeId);
         this.datasets.splice(datasetIndex, 1);
         this.refreshChart();
+      },
+    });
+
+    //on subscriptionConfig modify refresh chart
+    this.sharedService.chartValueBoundaries$.subscribe({
+      next: (value: SubscriptionConfig) => {
+        this.minLineValue = value.minValue;
+        this.maxLineValue = value.maxValue;
+        this.updateChart();
       },
     });
   }
@@ -78,6 +102,61 @@ export class NodeChartComponent {
     this.chart.update();
   }
 
+  private updateChart() {
+    if (this.minLineValue == undefined) {
+      return;
+    }
+
+    if (this.minLineValue === 0 && this.maxLineValue === 0) {
+      this.chart.options.plugins!.annotation!.annotations = {};
+      this.chart.update();
+      return;
+    }
+
+    this.updateBackgroundColor();
+    this.updateAnnotations();
+    this.chart.update();
+  }
+
+  private updateBackgroundColor() {
+    const dataset = this.datasets[0];
+    if (dataset === undefined) return;
+    dataset.backgroundColor = dataset.data.map((value: any) => {
+      if (value < this.minLineValue || value > this.maxLineValue) {
+        // Color for values outside the range
+        return 'rgba(255, 99, 132, 0.2)';
+      }
+      // Color for values inside the range
+      return 'rgba(75, 192, 192, 0.2)';
+    });
+  }
+
+  private updateAnnotations() {
+    this.chart.options.plugins!.annotation!.annotations = {
+      minLine: {
+        type: 'line',
+        yMin: this.minLineValue,
+        yMax: this.minLineValue,
+        borderColor: 'green',
+        borderWidth: 2,
+        label: {
+          content: 'Min Line',
+          position: 'start',
+        },
+      },
+      maxLine: {
+        type: 'line',
+        yMin: this.maxLineValue,
+        yMax: this.maxLineValue,
+        borderColor: 'red',
+        borderWidth: 2,
+        label: {
+          content: 'Max Line',
+          position: 'start',
+        },
+      },
+    };
+  }
   protected getNodeValue(nodeId: string) {
     let dataset = this.datasets.find((c) => c.label === nodeId);
     if (!dataset) return 0;
@@ -124,19 +203,14 @@ export class NodeChartComponent {
   }
 
   private pushEventToChartData(event: MonitoredItemValue): void {
-    let dsetItem = this.datasets.findIndex((c) => c.label === event.startNodeId);
+    let dsetItem = this.datasets.findIndex(
+      (c) => c.label === event.startNodeId
+    );
 
     if (dsetItem === -1) {
       const newDataset: ChartDataset = {
         label: event.startNodeId,
         data: [event.value],
-
-        // data: [
-        //   {
-        //     x: new Date(event.StoreTime),
-        //     y: event.Value,
-        //   },
-        // ],
         borderColor: this.getRandomColor(),
       };
 

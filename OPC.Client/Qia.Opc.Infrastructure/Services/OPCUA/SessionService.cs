@@ -38,8 +38,8 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 			// Merging the sessions
 			var mergedSessions = savedSessions
 				.GroupJoin(activeSessions,
-					saved => saved.SessionGuidId,
-					active => active.SessionGuidId,
+					saved => saved.Guid,
+					active => active.Guid,
 					(saved, activeGroup) => new { Saved = saved, Active = activeGroup.FirstOrDefault() })
 				.Select(m => m.Active ?? m.Saved);
 
@@ -53,7 +53,7 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 				CreatedAt = DateTime.UtcNow,
 				Name = sessionRequest.Name,
 				EndpointUrl = sessionRequest.EndpointUrl,
-				SessionGuidId = Guid.NewGuid().ToString(),
+				Guid = Guid.NewGuid().ToString(),
 			};
 
 			await sessionRepo.AddAsync(sessionEntity);
@@ -69,7 +69,7 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 			{
 				_sessionManager.TryGetSession(sessionNodeId, out var opcUaSession, true);
 				// if not found - create new 
-				if (opcUaSession == null) return ApiResponse<SessionResponse>.HandledFailure(HttpStatusCode.NotFound, "Create a new session");
+				if (opcUaSession == null) return ApiResponse<SessionResponse>.Success(null, HttpStatusCode.NotFound);
 
 				var sessionResponse = mapper.Map<SessionResponse>(opcUaSession);
 
@@ -90,7 +90,7 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 				throw;
 			}
 
-			
+
 		}
 
 		public ApiResponse<SessionResponse> CreateUniqueSessionAsync(SessionRequest sessionRequest)
@@ -110,14 +110,14 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 			return ApiResponse<SessionResponse>.Success(sessionResponse, HttpStatusCode.Created);
 		}
 
-		public async Task<ApiResponse<bool>> DeleteSessionAsync(string sessionNodeId)
+		public async Task<ApiResponse<bool>> DeleteSessionAsync(string sessionGuid)
 		{
-			var sessionToDelete = await sessionRepo.FindAsync(c => c.SessionGuidId == sessionNodeId);
+			var sessionToDelete = await sessionRepo.FindAsync(c => c.Guid == sessionGuid);
 
 			if (sessionToDelete == null) return ApiResponse<bool>.Failure(HttpStatusCode.NotFound);
 			await sessionRepo.DeleteAsync(sessionToDelete);
 
-			_sessionManager.DisconnectSession(sessionNodeId);
+			_sessionManager.DisconnectSession(sessionGuid);
 			return ApiResponse<bool>.Success(true);
 		}
 
@@ -133,10 +133,10 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 			}
 
 			// update database
-			var sessionEntity = await sessionRepo.FindAsync(c => c.SessionGuidId == request.SessionGuidId);
+			var sessionEntity = await sessionRepo.FindAsync(c => c.Guid == request.Guid);
 			sessionEntity.Name = request.Name;
 			sessionEntity.EndpointUrl = request.EndpointUrl;
-			await sessionRepo.UpsertAsync(sessionEntity, c => c.SessionGuidId == request.SessionGuidId);
+			await sessionRepo.UpsertAsync(sessionEntity, c => c.Guid == request.Guid);
 
 			return ApiResponse<SessionEntity>.Success(sessionEntity);
 		}

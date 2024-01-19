@@ -42,7 +42,6 @@ export class CommunicationService {
         console.log('Connected to SignalR hub.');
         this.listenNodesSubscription();
         this.listenSubscription();
-        this.listenEventMessage();
       });
 
       return 'Connected';
@@ -51,6 +50,25 @@ export class CommunicationService {
       this.notificationService.showError(message, '');
       console.error(message, err);
       return undefined;
+    }
+  }
+
+  // joining the group when session is selected and connected
+  joinNewGroup(group: string): void {
+    if(!group) return;
+    
+    if (!this.hubConnection.connectionId) {
+      this.signalrInit().then(() => {
+        this.hubConnection.invoke('JoinGroup', group);
+      });
+    } else {
+      this.hubConnection.invoke('JoinGroup', group);
+    }
+  }
+
+  leaveGroup(group: string): void {
+    if (group) {
+      this.hubConnection.invoke('LeaveGroup', group);
     }
   }
 
@@ -67,41 +85,5 @@ export class CommunicationService {
     this.hubConnection.on(method, (data: SubscriptionValue) => {
       this.subscriptionSubject.next(data);
     });
-  }
-
-  private listenEventMessage(method: string = 'SendEventMessageAction') {
-    this.hubConnection.on(method, (data: EventData) => {
-      switch (data.logCategory) {
-        case LogCategory.info:
-          this.notificationService.showInfo(data.message, data.title);
-          break;
-        case LogCategory.warning:
-          this.notificationService.showWarning(data.message, data.title);
-          break;
-        case LogCategory.error:
-          this.notificationService.showError(data.message, data.title);
-          break;
-        case LogCategory.success:
-          this.notificationService.showSuccess(data.message, data.title);
-          break;
-      }
-    });
-  }
-
-  // joining the group when session is selected and connected
-  joinNewGroup(group: string): void {
-    if (!this.hubConnection.connectionId) {
-      this.signalrInit().then(() => {
-        this.hubConnection.invoke('JoinGroup', group);
-      });
-    } else {
-      this.hubConnection.invoke('JoinGroup', group);
-    }
-  }
-
-  leaveGroup(group: string): void {
-    if (group) {
-      this.hubConnection.invoke('LeaveGroup', group);
-    }
   }
 }

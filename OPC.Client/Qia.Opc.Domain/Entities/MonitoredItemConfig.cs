@@ -1,6 +1,6 @@
 ﻿using Opc.Ua;
 using Qia.Opc.Domain.Entities.Interfaces;
-using QIA.Opc.Domain.Entities;
+using System.ComponentModel.DataAnnotations;
 
 namespace Qia.Opc.Domain.Entities
 {
@@ -9,7 +9,8 @@ namespace Qia.Opc.Domain.Entities
 	/// </summary>
 	public class MonitoredItemConfig : IBaseEntity
 	{
-		public string GuidId { get; set; }
+		[Key]
+		public string Guid { get; set; } = System.Guid.NewGuid().ToString();
 		public int OpcUaId { get; set; }
 		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 		public DateTime? UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -24,7 +25,6 @@ namespace Qia.Opc.Domain.Entities
 		public string? IndexRange { get; set; }
 		public MonitoringMode MonitoringMode { get; set; }
 		//
-		public string SubscriptionGuidId { get; set; }
-		public SubscriptionConfig Subscription { get; set; }
+		public string SubscriptionGuid { get; set; }
 	}
 }

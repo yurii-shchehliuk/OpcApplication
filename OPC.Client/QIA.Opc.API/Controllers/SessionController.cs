@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Qia.Opc.Domain.Core;
-using Qia.Opc.Domain.Entities;
+using QIA.Opc.Domain.Common;
 using QIA.Opc.Domain.Requests;
 using QIA.Opc.Domain.Responses;
 using QIA.Opc.Infrastructure.Services.OPCUA;
@@ -14,22 +13,6 @@ namespace QIA.Opc.API.Controllers
 		public SessionController(SessionService sessionService)
 		{
 			this.sessionService = sessionService;
-		}
-
-		[HttpGet("list")]
-		public async Task<ActionResult<IEnumerable<SessionResponse>>> SavedSessions()
-		{
-			try
-			{
-				var sessionListResponse = await sessionService.GetSessionsAsync();
-
-				return HandleResponse(sessionListResponse);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
 		}
 
 		[HttpPost("create")]
@@ -56,7 +39,7 @@ namespace QIA.Opc.API.Controllers
 				// reconnect
 				var currentSessionResponse = sessionService.GetSessionIfActive(request.SessionNodeId);
 
-				if (currentSessionResponse.IsSuccess)
+				if (currentSessionResponse.Value != null)
 				{
 					return HandleResponse(currentSessionResponse);
 				}
@@ -73,14 +56,14 @@ namespace QIA.Opc.API.Controllers
 			}
 		}
 
-		[HttpDelete("disconnect")]
-		public IActionResult Disconnect([FromQuery] string sessionNodeId)
+		[HttpGet("list")]
+		public async Task<ActionResult<IEnumerable<SessionResponse>>> SavedSessions()
 		{
 			try
 			{
-				var response = sessionService.Disconnect(sessionNodeId);
+				var sessionListResponse = await sessionService.GetSessionsAsync();
 
-				return HandleResponse(response);
+				return HandleResponse(sessionListResponse);
 			}
 			catch (Exception ex)
 			{
@@ -105,12 +88,28 @@ namespace QIA.Opc.API.Controllers
 			}
 		}
 
-		[HttpDelete("delete")]
-		public async Task<IActionResult> DeleteSession([FromQuery] string sessionNodeId)
+		[HttpDelete("disconnect")]
+		public IActionResult Disconnect([FromQuery] string sessionNodeId)
 		{
 			try
 			{
-				var response = await sessionService.DeleteSessionAsync(sessionNodeId);
+				var response = sessionService.Disconnect(sessionNodeId);
+
+				return HandleResponse(response);
+			}
+			catch (Exception ex)
+			{
+				LoggerManager.Logger.Error("{0}", ex);
+				throw;
+			}
+		}
+
+		[HttpDelete("delete")]
+		public async Task<IActionResult> DeleteSession([FromQuery] string sessionGuid)
+		{
+			try
+			{
+				var response = await sessionService.DeleteSessionAsync(sessionGuid);
 
 				return HandleResponse(response);
 			}

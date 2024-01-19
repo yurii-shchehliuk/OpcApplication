@@ -23,9 +23,9 @@ steps:
     displayName: 'ng build'
     workingDirectory: '$(Build.SourcesDirectory)/ClientApp' # D:\a\1\s
 
-  - script: |
-      rm -f $(Pipeline.Workspace)/**/$(opcWebAppArtifactName).zip
-    displayName: 'Cleanup old artifacts'
+  # - script: |
+  #     rm -f $(Pipeline.Workspace)/**/$(opcWebAppArtifactName).zip
+  #   displayName: 'Cleanup old artifacts'
 
   - task: ArchiveFiles@2
     displayName: 'Archive files'
@@ -42,6 +42,6 @@ steps:
       ArtifactName: 'drop'
       publishLocation: 'Container'
 
-  - script: |
-      ls -al $(Build.ArtifactStagingDirectory)
-    displayName: 'Check Artifact Staging Directory'
+  # - script: |
+  #     ls -al $(Build.ArtifactStagingDirectory)
+  #   displayName: 'Check Artifact Staging Directory'

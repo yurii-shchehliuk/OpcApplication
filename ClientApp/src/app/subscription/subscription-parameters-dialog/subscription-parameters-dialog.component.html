@@ -6,6 +6,14 @@
             <input matInput type="text" formControlName="displayName">
         </mat-form-field>
         <mat-form-field>
+            <mat-label>Max Value</mat-label>
+            <input matInput type="number" min="0" max="1000000000" step="1000" formControlName="maxValue">
+        </mat-form-field>
+        <mat-form-field>
+            <mat-label>Min Value</mat-label>
+            <input matInput type="number" min="0" max="1000000000" step="1000" formControlName="minValue">
+        </mat-form-field>
+        <mat-form-field>
             <mat-label>Publishing Interval</mat-label>
             <input matInput type="number" min="0" max="1000000000" step="1000" formControlName="publishingInterval">
         </mat-form-field>

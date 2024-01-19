@@ -5,6 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { SessionDialogComponent } from './session-dialog/session-dialog.component';
 import { SessionEntity } from '../models/sessionModels';
 import { SessionState } from '../models/enums';
+import { SharedService } from '../shared/shared.service';
 
 @Component({
   selector: 'app-session',
@@ -20,6 +21,7 @@ export class SessionComponent {
   constructor(
     private sessionService: SessionService,
     private communicationService: CommunicationService,
+    private sharedService: SharedService,
     public dialog: MatDialog
   ) {
     this.communicationService.signalrInit();
@@ -31,7 +33,7 @@ export class SessionComponent {
       res.map((session) => {
         session.isSelected = false;
         const index = this.sessionArr.findIndex(
-          (sessionItem) => sessionItem.sessionGuidId === session.sessionGuidId
+          (sessionItem) => sessionItem.guid === session.guid
         );
         if (index !== -1) {
           this.sessionArr[index] = session;
@@ -56,7 +58,7 @@ export class SessionComponent {
       }
       // flat for css
       this.sessionArr.map((session) => {
-        if (session.sessionGuidId != res.sessionGuidId) {
+        if (session.guid != res.guid) {
           session.isSelected = false;
         }
       });
@@ -65,11 +67,20 @@ export class SessionComponent {
     });
 
     this.sessionService.getSessionList();
+
+    this.sharedService.updateSessionList$.subscribe({
+      next: () => {
+        setTimeout(() => {
+          this.sessionArr = [];
+          this.sessionService.getSessionList();
+        }, 500);
+      },
+    });
   }
 
   selectSession(selectedSession: SessionEntity) {
     this.sessionArr.map((session) => {
-      if (session.sessionGuidId === selectedSession.sessionGuidId) {
+      if (session.guid === selectedSession.guid) {
         this.sessionService.connectToSession(session);
       } else {
         this.communicationService.leaveGroup(session.sessionNodeId);
@@ -81,7 +92,7 @@ export class SessionComponent {
     this.sessionService.disconnect(session).subscribe({
       next: () => {
         const index = this.sessionArr.findIndex(
-          (sessionItem) => sessionItem.sessionGuidId === session.sessionGuidId
+          (sessionItem) => sessionItem.guid === session.guid
         );
         if (index !== -1) {
           this.sessionArr[index].state = SessionState.disconnected;
@@ -96,16 +107,10 @@ export class SessionComponent {
     event: any,
     sessionData: SessionEntity = (<Partial<SessionEntity>>{}) as SessionEntity
   ): void {
-    const sessionDialog = this.dialog.open(SessionDialogComponent, {
+    this.dialog.open(SessionDialogComponent, {
       data: JSON.parse(JSON.stringify(sessionData)),
     });
 
-    sessionDialog.afterClosed().subscribe({
-      next: () => {
-        this.sessionArr = [];
-        this.sessionService.getSessionList();
-      },
-    });
     event.stopPropagation();
   }
 }

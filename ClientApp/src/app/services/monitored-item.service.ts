@@ -31,12 +31,12 @@ export class MonitoredItemService {
   addToSubscription(subscription: SubscriptionValue, nodeId: string) {
     const url = `${this.baseUrl}addToSubscription`;
     let request = <RequestObject>{
-      sessionGuidId: this.currentSession.sessionGuidId,
+      sessionGuid: this.currentSession.guid,
       sessionNodeId: this.currentSession.sessionNodeId,
-      subscriptionGuidId: subscription.subscriptionGuidId,
+      subscriptionGuid: subscription.guid,
       opcUaId: subscription.opcUaId,
       nodeId: nodeId,
-    };
+    };  
     return this.http.post(url, request).subscribe();
   }
 

@@ -1,12 +1,13 @@
 parameters:
   buildConfiguration: ''
   opcApiArtifactName: ''
+  opcServerArtifactName: ''
 
 steps:
   # .net restore
   - template: restore-build-test.yml
 
-  # .NET Publish
+  # publish api
   - task: DotNetCoreCLI@2
     displayName: 'Dotnet Publish API'
     inputs:
@@ -18,3 +19,16 @@ steps:
       modifyOutputPath: false
   - publish: $(Build.ArtifactStagingDirectory)/${{ parameters.opcApiArtifactName }}
     artifact: ${{ parameters.opcApiArtifactName }}
+
+  # publish server
+  # - task: DotNetCoreCLI@2
+  #   displayName: 'Dotnet Publish Server'
+  #   inputs:
+  #     command: 'publish'
+  #     projects: '**/OpcServer.csproj'
+  #     arguments: '--configuration ${{ parameters.buildConfiguration }} --output $(Build.ArtifactStagingDirectory)/${{ parameters.opcServerArtifactName }} --no-build'
+  #     zipAfterPublish: True
+  #     publishWebProjects: false
+  #     modifyOutputPath: false
+  # - publish: $(Build.ArtifactStagingDirectory)/${{ parameters.opcServerArtifactName }}
+  #   artifact: ${{ parameters.opcServerArtifactName }}

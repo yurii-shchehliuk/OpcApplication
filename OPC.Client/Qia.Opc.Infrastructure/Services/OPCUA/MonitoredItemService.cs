@@ -1,16 +1,13 @@
 ﻿using AutoMapper;
-using Microsoft.EntityFrameworkCore;
-using Opc.Ua;
 using Opc.Ua.Client;
 using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Core;
 using Qia.Opc.Domain.Entities;
+using QIA.Opc.Domain.Common;
 using QIA.Opc.Domain.Entities;
 using QIA.Opc.Domain.Repository;
 using QIA.Opc.Domain.Requests;
-using QIA.Opc.Domain.Responses;
 using QIA.Opc.OPCUA.Connector.Managers;
-using System.Threading;
 
 namespace QIA.Opc.Infrastructure.Services.OPCUA
 {
@@ -90,10 +87,11 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 
 		public ApiResponse<bool> DeleteMonitoringItem(string sessionNodeId, uint subscriptionId, string nodeId)
 		{
-			var result = monitoredItemManager.DeleteMonitoringItem(sessionNodeId, subscriptionId, nodeId);
+			var monitoredItemOpc = monitoredItemManager.DeleteMonitoringItem(sessionNodeId, subscriptionId, nodeId);
 
-			if (!result) return ApiResponse<bool>.Failure(HttpStatusCode.NotFound);
-			// TODO: update in db
+			if (monitoredItemOpc == null) return ApiResponse<bool>.Failure(HttpStatusCode.NotFound);
+
+			var monitoredItemDb = monItemCfgRepo.DeleteAsync(c => c.StartNodeId == nodeId && c.OpcUaId == monitoredItemOpc.ServerId);
 
 			return ApiResponse<bool>.Success(true);
 		}
@@ -113,8 +111,7 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 		{
 			//prepare item
 			var monItemCfg = mapper.Map<MonitoredItemConfig>(monItem);
-			monItemCfg.SubscriptionGuidId = subscriptionConfig.SubscriptionGuidId;
-			monItemCfg.GuidId = Guid.NewGuid().ToString();
+			monItemCfg.SubscriptionGuid = subscriptionConfig.Guid;
 
 			try
 			{

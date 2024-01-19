@@ -1,15 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Opc.Ua;
 using Qia.Opc.Domain.Common;
-using Qia.Opc.Domain.Core;
 using Qia.Opc.Infrastructure.Application;
 using Qia.Opc.OPCUA.Connector;
 using Qia.Opc.OPCUA.Connector.Managers;
 using Qia.Opc.Persistence;
 using QIA.Opc.API.Core;
-using QIA.Opc.Domain;
+using QIA.Opc.Domain.Common;
 using QIA.Opc.Domain.Repository;
-using QIA.Opc.Infrastructure;
 using QIA.Opc.Infrastructure.Repositories;
 using QIA.Opc.Infrastructure.Services.Communication;
 using QIA.Opc.Infrastructure.Services.OPCUA;

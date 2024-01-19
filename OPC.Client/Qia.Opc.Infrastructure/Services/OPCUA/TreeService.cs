@@ -21,11 +21,11 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 			this.sessionManager = sessionManager;
 		}
 
-		public async Task<ApiResponse<TreeContainer>> GetFullGraphAsync(string sessionGuidId)
+		public async Task<ApiResponse<TreeContainer>> GetFullGraphAsync(string sessionGuid)
 		{
-			var treeData = await treeManager.BrowseTreeAsync(sessionGuidId);
+			var treeData = await treeManager.BrowseTreeAsync(sessionGuid);
 			var textContent = JsonConvert.SerializeObject(treeData);
-			sessionManager.TryGetSession(sessionGuidId, out var session);
+			sessionManager.TryGetSession(sessionGuid, out var session);
 			TreeContainer treeContainer = new TreeContainer()
 			{
 				Data = textContent,
@@ -38,9 +38,9 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 
 		}
 
-		public ApiResponse<TreeNode> BrowseChild(string sessionGuidId, TreeNode node)
+		public ApiResponse<TreeNode> BrowseChild(string sessionGuid, TreeNode node)
 		{
-			var result = treeManager.BrowseChildren(sessionGuidId, node);
+			var result = treeManager.BrowseChildren(sessionGuid, node);
 			return ApiResponse<TreeNode>.Success(result);
 		}
 	}

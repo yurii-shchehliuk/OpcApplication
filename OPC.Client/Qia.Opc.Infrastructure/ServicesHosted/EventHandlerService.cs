@@ -1,8 +1,8 @@
 ﻿using MediatR;
 using Microsoft.Extensions.Hosting;
-using Qia.Opc.Domain.Common;
 using Qia.Opc.Infrastructure.Application;
 using Qia.Opc.OPCUA.Connector.Managers;
+using QIA.Opc.Domain.Entities;
 
 namespace QIA.Opc.Infrastructure.ServicesHosted
 {

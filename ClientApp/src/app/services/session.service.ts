@@ -82,9 +82,7 @@ export class SessionService {
   }
 
   updateSession(session: SessionEntity): Subscription {
-    let url = `${this.baseUrl}update?sessionNodeId=${
-      session.sessionNodeId ?? ''
-    }`;
+    let url = `${this.baseUrl}update`;
 
     return this.http.put<SessionEntity>(url, session).subscribe({
       next: (response: SessionEntity) => {
@@ -98,8 +96,8 @@ export class SessionService {
   }
 
   deleteSession(session: SessionEntity): Subscription {
-    let url = `${this.baseUrl}delete?sessionNodeId=${
-      session.sessionNodeId ?? ''
+    let url = `${this.baseUrl}delete?guid=${
+      session.guid ?? ''
     }`;
     return this.http.delete(url).subscribe({
       next: () => {

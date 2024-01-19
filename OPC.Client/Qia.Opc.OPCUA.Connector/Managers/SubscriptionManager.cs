@@ -1,12 +1,9 @@
-﻿using Opc.Ua;
-using Opc.Ua.Client;
-using Qia.Opc.Domain.Common;
-using Qia.Opc.Domain.Core;
+﻿using Opc.Ua.Client;
 using Qia.Opc.OPCUA.Connector.Entities;
+using QIA.Opc.Domain.Common;
 using QIA.Opc.Domain.Entities;
 using QIA.Opc.Domain.Requests;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 
 namespace Qia.Opc.OPCUA.Connector.Managers
 {
@@ -27,7 +24,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 		private PublishStateChangedEventHandler m_PublishStatusChanged = null;
 		private SubscriptionStateChangedEventHandler m_SubscriptionStateChanged = null;
 		/// <summary>
-		/// used to refer to database entity only <sessionId+subscriptionId, subscriptionGuidId>
+		/// used to refer to database entity only <sessionId+subscriptionId, subscriptionGuid>
 		/// </summary>
 		private ConcurrentDictionary<string, string> _subscriptions = new ConcurrentDictionary<string, string>();
 
@@ -45,14 +42,14 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			sessionManager.TryGetSession(sessionNodeId, out session);
 			var subscription = CreateSubscription(session.Session, subsParams);
 
-			_subscriptions.TryAdd(sessionNodeId + subscriptionKey + subscription.Id.ToString(), subsParams.SubscriptionGuidId);
+			_subscriptions.TryAdd(sessionNodeId + subscriptionKey + subscription.Id.ToString(), subsParams.Guid);
 
 			return subscription;
 		}
 
-		public bool DeleteSubscription(string sessionNodeId, uint subscriptionId, out string subscriptionGuidId)
+		public bool DeleteSubscription(string sessionNodeId, uint subscriptionId, out string subscriptionGuid)
 		{
-			subscriptionGuidId = "";
+			subscriptionGuid = "";
 			sessionManager.TryGetSession(sessionNodeId, out var session);
 			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(c => c.Id == subscriptionId);
 
@@ -61,7 +58,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 				session.Session.RemoveSubscription(subscription);
 				subscription.Delete(true);
-				_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + subscriptionId.ToString(), out subscriptionGuidId);
+				_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + subscriptionId.ToString(), out subscriptionGuid);
 				_subscriptions.TryRemove(sessionNodeId + subscriptionKey + subscriptionId.ToString(), out _);
 				return true;
 			}
@@ -69,13 +66,13 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			return false;
 		}
 
-		public bool Modify(string sessionNodeId, SubscriptionRequest subsParams, out string subscriptionGuidId)
+		public void Modify(string sessionNodeId, SubscriptionRequest subsParams, out string subscriptionGuid)
 		{
-			subscriptionGuidId = "";
+			subscriptionGuid = "";
 			sessionManager.TryGetSession(sessionNodeId, out var session);
 
 			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subsParams.OpcUaId);
-			if (subscription == null) return false;
+			if (subscription == null) return;//subscription is not active;
 
 			subscription.DisplayName = subsParams.DisplayName;
 			subscription.PublishingInterval = subsParams.PublishingInterval;
@@ -91,41 +88,39 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 
 			subscription.Modify();
-			_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + subsParams.OpcUaId.ToString(), out subscriptionGuidId);
-
-			return true;
+			_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + subsParams.OpcUaId.ToString(), out subscriptionGuid);
 		}
 
-		public bool SetPublishingMode(string sessionNodeId, uint subscriptionId, bool enable)
+		public Subscription SetPublishingMode(string sessionNodeId, uint subscriptionId, bool enable)
 		{
 			sessionManager.TryGetSession(sessionNodeId, out var session);
 
 			Subscription subscription = session.Session.Subscriptions.FirstOrDefault(s => s.Id == subscriptionId);
 
 			if (subscription == null)
-				return false;
+				return null;
 
 			subscription.SetPublishingMode(enable);
-			return true;
+			return subscription;
 		}
 
-		public IEnumerable<OPCUASubscription> GetActiveOpcSubscriptions(string sessionNodeId, out string sessionGuidId)
+		public IEnumerable<OPCUASubscription> GetActiveOpcSubscriptions(string sessionNodeId, out string sessionGuid)
 		{
-			sessionGuidId = "";
+			sessionGuid = "";
 			var subscriptions = new List<OPCUASubscription>();
-			sessionManager.TryGetSession(sessionNodeId, out var session);
+			sessionManager.TryGetSession(sessionNodeId, out var session, true);
 			if (session == null)
 			{
 				return subscriptions;
 			}
-			sessionGuidId = session.SessionGuidId;
+			sessionGuid = session.Guid;
 
 			foreach (var item in session.Session.Subscriptions)
 			{
-				_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + item.Id.ToString(), out string subscriptionGuidId);
-				
+				_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + item.Id.ToString(), out string subscriptionGuid);
+
 				//unexpected
-				if (string.IsNullOrEmpty(subscriptionGuidId))
+				if (string.IsNullOrEmpty(subscriptionGuid))
 				{
 					_subscriptions.TryRemove(sessionNodeId + subscriptionKey + item.Id.ToString(), out _);
 					continue;
@@ -133,22 +128,27 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 				subscriptions.Add(new OPCUASubscription
 				{
 					Subscription = item,
-					SubscriptionGuidId = subscriptionGuidId
+					Guid = subscriptionGuid
 				});
 			};
 
 			return subscriptions;
 		}
 
-		public Subscription GetSubscription(string sessionNodeId, uint subscriptionId, out string subscriptionGuidId)
+		public Subscription GetSubscription(string sessionNodeId, uint subscriptionId, out string subscriptionGuid)
 		{
-			subscriptionGuidId = "";
+			subscriptionGuid = "";
 			sessionManager.TryGetSession(sessionNodeId, out var session);
 			if (session == null)
 			{
 				return null;
 			}
-			_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + subscriptionId.ToString(), out subscriptionGuidId);
+			_subscriptions.TryGetValue(sessionNodeId + subscriptionKey + subscriptionId.ToString(), out subscriptionGuid);
+			if (string.IsNullOrEmpty(subscriptionGuid))
+			{
+				_subscriptions.TryRemove(sessionNodeId + subscriptionKey + subscriptionId.ToString(), out _);
+			}
+
 			return session.Session.Subscriptions.FirstOrDefault(c => c.Id == subscriptionId);
 		}
 
@@ -203,7 +203,6 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 		#endregion
 
-
 		#region events
 
 		private void Session_NotificationAsync(ISession session, NotificationEventArgs e)
@@ -213,14 +212,14 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 
 		private void Subscription_StateChanged(Subscription subscription, SubscriptionStateChangedEventArgs e)
 		{
-			LoggerManager.Logger.Information("Subscription {subscription.Id} state: " + e.Status.ToString() + $" publishing enabled: {subscription.PublishingEnabled}");
+			LoggerManager.Logger.Information($"Subscription {subscription.Id} state: " + e.Status.ToString() + $" publishing enabled: {subscription.PublishingEnabled}");
 		}
 
 		private void Subscription_PublishStatusChanged(Subscription subscription, PublishStateChangedEventArgs e)
 		{
-			LoggerManager.Logger.Information("Publish state: " + e.Status.ToString());
+			LoggerManager.Logger.Information($"Publish state {subscription.Id} : " + e.Status.ToString());
 		}
-		#endregion
 
+		#endregion
 	}
 }

@@ -1,15 +1,15 @@
 ﻿using Opc.Ua;
 using Opc.Ua.Client;
-using Qia.Opc.Domain.Common;
 using Qia.Opc.Domain.Entities.Enums;
 using Qia.Opc.OPCUA.Connector.Entities;
+using QIA.Opc.Domain.Entities;
 using QIA.Opc.Domain.Requests;
 using System.Collections.Concurrent;
 using System.Net.NetworkInformation;
 
 namespace Qia.Opc.OPCUA.Connector.Managers
 {
-	using static Qia.Opc.Domain.Core.LoggerManager;
+	using static QIA.Opc.Domain.Common.LoggerManager;
 
 	/// <summary>
 	/// Sessions container
@@ -71,7 +71,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 			else
 			{
-				session.LastAccessed = DateTime.UtcNow;
+				//session.LastAccessed = DateTime.UtcNow;
 			}
 		}
 
@@ -84,7 +84,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			{
 				newSession.EndpointUrl = sessionRequest.EndpointUrl;
 				newSession.Name = sessionRequest.Name;
-				newSession.SessionGuidId = sessionRequest.SessionGuidId;
+				newSession.Guid = sessionRequest.Guid;
 
 				CheckIfMachineIsActive(newSession.EndpointUrl);
 
@@ -108,7 +108,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 				{
 					EndpointUrl = sessionRequest.EndpointUrl,
 					Name = sessionRequest.Name,
-					SessionGuidId = sessionRequest.SessionGuidId,
+					Guid = sessionRequest.Guid,
 					SessionNodeId = session.SessionId.ToString(),
 					CreatedAt = DateTime.UtcNow,
 					LastAccessed = DateTime.UtcNow,
@@ -121,7 +121,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 			catch (Exception e)
 			{
-				Logger.Error(e, $"Session creation to endpoint '{newSession.EndpointUrl}' failed {++UnsuccessfulConnectionCount} time(s). Please verify if server is up and configuration is correct.\n {e.Message} {e.InnerException?.Message}");
+				Logger.Error(e, $"Session creation to endpoint '{newSession.EndpointUrl}' failed {++UnsuccessfulConnectionCount} time(s). Please verify if server is up and configuration is correct.\n {e.Message} {e.InnerException?.Message} {e.StackTrace}");
 
 				RemoveSession(newSession.SessionNodeId);
 				return newSession;
@@ -223,7 +223,7 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			if (reply.Status != IPStatus.Success)
 			{
 				Logger.Error($"PING {url.Host}: {reply.Status}");
-				throw new Exception($"Machine with IP {url.Host} is not active");
+				throw new Exception($"Connection the the IP {url.Host} failed");
 			}
 
 			Logger.Information($"PING {url.Host}: {reply.Status}");
@@ -289,10 +289,8 @@ namespace Qia.Opc.OPCUA.Connector.Managers
 			}
 		}
 
-
 		private CancellationTokenSource _sessionCancelationTokenSource;
 		private NamespaceTable _namespaceTable;
 		private double _minSupportedSamplingInterval;
-
 	}
 }

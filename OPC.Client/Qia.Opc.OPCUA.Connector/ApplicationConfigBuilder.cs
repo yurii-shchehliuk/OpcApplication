@@ -1,6 +1,6 @@
 ﻿using Opc.Ua;
 using Opc.Ua.Configuration;
-using Qia.Opc.Domain.Core;
+using QIA.Opc.Domain.Common;
 using System.Diagnostics;
 using System.Net;
 using System.Reflection;
