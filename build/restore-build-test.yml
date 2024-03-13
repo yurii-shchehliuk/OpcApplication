@@ -12,12 +12,12 @@ steps:
       projects: '.\OPC.Client\OPC.Client.sln'
       feedsToUse: 'select'
 
-  - task: DotNetCoreCLI@2
-    displayName: dotnet restore OPC Server
-    inputs:
-      command: 'restore'
-      projects: '.\OPC.Server\OPC.Server.sln'
-      feedsToUse: 'select'
+  #- task: DotNetCoreCLI@2
+   # displayName: dotnet restore OPC Server
+    #inputs:
+     # command: 'restore'
+      #projects: '.\OPC.Server\OPC.Server.sln'
+      #feedsToUse: 'select'
   
   # build all
   - task: DotNetCoreCLI@2

@@ -59,7 +59,7 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 			}
 			catch (Exception ex)
 			{
-				return ApiResponse<MonitoredItem>.Failure(HttpStatusCode.BadRequest, $"Cannot add to the subscription:: {ex.Message} \n{ex.InnerException?.Message ?? ""}");
+				return ApiResponse<MonitoredItem>.Failure(HttpStatusCode.BadRequest, $"Cannot add {nodeId} to the subscription:: {ex.Message} \n{ex.InnerException?.Message ?? ""}");
 			}
 		}
 

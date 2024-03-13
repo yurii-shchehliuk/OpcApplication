@@ -7,7 +7,6 @@ namespace QIA.Opc.API.Core
 	{
 		private readonly RequestDelegate _next;
 
-
 		public ExceptionMiddleware(RequestDelegate next)
 		{
 			_next = next;

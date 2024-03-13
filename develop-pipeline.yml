@@ -1,0 +1,100 @@
+# ASP.NET
+# Build and test ASP.NET projects.
+# Add steps that publish symbols, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
+
+trigger:
+  - develop
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  opcApiArtifactName: 'QIA_OpcAPI'
+  opcServerArtifactName: 'QIA_OpcServer'
+  opcWebAppArtifactName: 'QIA_OpcWebApp'
+  AzureSubscription: 'DataLakeDEV-dev-qia-dm-weu-rg'
+  ResourceGroupName: 'dev-qia-dm-sandbox-weu-rg'
+  #OpcApiServiceName: 'dev-qia-opc-api-weu-app'
+  OpcApiServiceName: 'dev-qia-opc-api-weu-app'
+  OpcServerServiceName: 'dev-qia-opcua-server-weu-app'
+  OpcApiSlotName: 'dev-qia-opc-api-weu-test-app-dd'
+  OpcWebAppServiceName: 'dev-qia-opc-web-weu-app'
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildAndPublish
+        displayName: 'Build and Publish Job'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - template: build/dotnet-build-publish.yml
+            parameters:
+              buildConfiguration: $(buildConfiguration)
+              opcApiArtifactName: $(opcApiArtifactName)
+              opcServerArtifactName: $(opcServerArtifactName)
+
+          - template: build/angular-build-publish.yml
+            parameters:
+              opcWebAppArtifactName: $(opcWebAppArtifactName)
+
+  - stage: DeployDEV
+    displayName: 'Deploy to DEV Stage'
+    jobs:
+      # deploy API
+      - deployment: DeployApi
+        displayName: 'Deploy $(opcApiArtifactName)'
+        environment:
+          name: 'QIAOpc_DEV'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebApp@1
+                  displayName: 'Deploy to Azure Web App $(Pipeline.Workspace)'
+                  inputs:
+                    azureSubscription: '$(AzureSubscription)'
+                    appType: 'webApp'
+                    appName: '$(OpcApiServiceName)'
+                    package: '$(Pipeline.Workspace)/**/$(opcApiArtifactName).zip'
+                    # slotName: '$(OpcApiSlotName)'
+      # deploy Server
+      - deployment: DeployServer
+        displayName: 'Deploy $(opcServerArtifactName)'
+        environment:
+          name: 'QIAOpc_DEV'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebApp@1
+                  displayName: 'Deploy to Azure Web App $(Pipeline.Workspace)'
+                  inputs:
+                    azureSubscription: '$(AzureSubscription)'
+                    appType: 'webApp'
+                    appName: '$(OpcServerServiceName)'
+                    package: '$(Pipeline.Workspace)/**/$(opcServerArtifactName).zip'
+                    # slotName: '$(OpcApiSlotName)'
+
+      # deploy WEB
+      - deployment: DeployOPCWebApp
+        displayName: 'Deploy $(opcWebAppArtifactName)'
+        environment:
+          name: 'QIAOpc_DEV'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebApp@1
+                  displayName: 'Deploy OPC Web App'
+                  inputs:
+                    azureSubscription: '$(AzureSubscription)'
+                    appType: 'webApp'
+                    appName: '$(OpcWebAppServiceName)'
+                    package: '$(Pipeline.Workspace)/drop/$(opcWebAppArtifactName).zip'
+                    runtimeStack: 'NODE|16-lts'

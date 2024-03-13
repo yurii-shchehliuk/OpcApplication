@@ -64,7 +64,7 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 				// add item to subscription
 				var monItemResponse = monitoredItemService.AddItemToSubscription(sessionNodeId, subscription, nodeId);
 				if (!monItemResponse.IsSuccess)
-					return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"Cannot add to monitoring");
+					return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"Cannot add {nodeId} to monitoring");
 
 				//prepare and save
 				var monItemCfg = mapper.Map<MonitoredItemConfig>(monItemResponse.Value);
@@ -215,20 +215,32 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 		#region events
 		/// avoid stackoverflow
 		private bool isHandlingEvent = false;
-		private async void SubscriptionManager_SessionNotificationEvent(object senderSession, NotificationEventArgs e)
+		private SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+		private HashSet<uint> processedSequences = new HashSet<uint>(); 
+		int index = 1;
+		private void SubscriptionManager_SessionNotificationEvent(object senderSession, NotificationEventArgs e)
 		{
 			if (isHandlingEvent)
 			{
 				isHandlingEvent = false;
 				return;
 			}
-			isHandlingEvent = true;
-			//await _semaphore.WaitAsync();
-			//#if DEBUG
-			//			LoggerManager.Logger.Information($"Event recieved");
-			//#endif
+
+			if (processedSequences.Contains(e.NotificationMessage.SequenceNumber))
+			{
+				return;
+			}
+
+
+			_semaphore.Wait();
 			try
 			{
+				string eventDetails = $"{e.Subscription.Session.SessionId}:{e.NotificationMessage.SequenceNumber}:{e.NotificationMessage.PublishTime}";
+				LoggerManager.Logger.Information($"Processing event {index}: {eventDetails}");
+
+				isHandlingEvent = true;
+
+				index++;
 				// get the changes.
 				List<MonitoredItemNotification> changes = new List<MonitoredItemNotification>();
 				foreach (MonitoredItemNotification change in e.NotificationMessage.GetDataChanges(false))
@@ -240,7 +252,13 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 					changes.Add(change);
 				}
 
-				if (changes.Count == 0 || e.Subscription.Session.SessionId == null) return;
+				if (changes.Count == 0
+					|| e.Subscription.Session.SessionId == null)
+				{
+					return;
+				}
+
+				processedSequences.Add(e.NotificationMessage.SequenceNumber);
 
 				sessionManager.TryGetSession(e.Subscription.Session.SessionId.ToString(), out var session);
 				subscriptionManager.GetSubscription(session.SessionNodeId, e.Subscription.Id, out var subscriptionGuid);
@@ -278,14 +296,21 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 
 					subscriptionResponce.MonitoredItems.Add(nodeValue);
 
-					LoggerManager.Logger.Information($"[monitoring node] NodeId: {nodeValue.StartNodeId}");
+					LoggerManager.Logger.Information($"[monitoring node] NodeId: {nodeValue.StartNodeId} sequence: {subscriptionResponce.SequenceNumber}");
 
-					await signalRService.SendNodeAsync(nodeValue, subscriptionResponce.SessionNodeId);
-					await monitoredItemService.SaveMonitoredItemValueAsync(nodeValue);
-					//await _azureMS.SendNodeAsync(nodeValue);
+					Task.Run(async () =>
+					{
+						await signalRService.SendNodeAsync(nodeValue, subscriptionResponce.SessionNodeId);
+						await monitoredItemService.SaveMonitoredItemValueAsync(nodeValue);
+						//await _azureMS.SendNodeAsync(nodeValue);
+					});
 				}
 
-				await SendSubscriptionAsync(subscriptionResponce);
+				Task.Run(async () =>
+				{
+					await SendSubscriptionAsync(subscriptionResponce);
+				});
+
 			}
 			catch (Exception ex)
 			{
@@ -293,9 +318,8 @@ namespace QIA.Opc.Infrastructure.Services.OPCUA
 			}
 			finally
 			{
-				//_semaphore.Release();
+				_semaphore.Release();
 				isHandlingEvent = false;
-				Thread.Sleep(500);
 			}
 		}
 		#endregion

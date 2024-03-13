@@ -75,7 +75,7 @@
             "iis": {
               "fileReplacements": [
                 {
-                  "replace": "src/environments/environment.ts",
+                  "replace": "src/environments/environment.development.ts",
                   "with": "src/environments/environment.iis.ts"
                 }
               ]
@@ -91,6 +91,9 @@
             },
             "development": {
               "browserTarget": "OpcChart:build:development"
+            },
+            "iis": {
+              "browserTarget": "OpcChart:build:iis"
             }
           },
           "defaultConfiguration": "development"
