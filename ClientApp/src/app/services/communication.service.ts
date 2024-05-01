@@ -3,10 +3,9 @@ import { Observable, Subject } from 'rxjs';
 import * as signalR from '@microsoft/signalr';
 import { environment } from 'src/environments/environment.development';
 import { NotificationService } from '../shared/notification.service';
-import { EventData } from '../models/eventModels';
-import { LogCategory } from '../models/enums';
 import { MonitoredItemValue } from '../models/monitoredItem';
 import { SubscriptionValue } from '../models/subscriptionModels';
+import { NotificationData } from '../models/notificationModel';
 
 @Injectable({
   providedIn: 'root',
@@ -42,6 +41,7 @@ export class CommunicationService {
         console.log('Connected to SignalR hub.');
         this.listenNodesSubscription();
         this.listenSubscription();
+        this.listenNotification();
       });
 
       return 'Connected';
@@ -84,6 +84,12 @@ export class CommunicationService {
     // get subscription with monitored items
     this.hubConnection.on(method, (data: SubscriptionValue) => {
       this.subscriptionSubject.next(data);
+    });
+  }
+
+  private listenNotification(method: string = 'SendNotificationAction') {
+    this.hubConnection.on(method, (data: NotificationData) => {
+      this.notificationService.show(data);
     });
   }
 }

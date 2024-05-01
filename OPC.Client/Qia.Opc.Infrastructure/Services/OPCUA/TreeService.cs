@@ -1,47 +1,40 @@
-﻿using Newtonsoft.Json;
-using Qia.Opc.Domain.Core;
+namespace QIA.Opc.Infrastructure.Services.OPCUA;
+
+using Newtonsoft.Json;
 using Qia.Opc.Domain.Entities;
-using Qia.Opc.OPCUA.Connector.Managers;
-using QIA.Opc.Domain.Repository;
+using QIA.Opc.Infrastructure.Application;
+using QIA.Opc.Infrastructure.Managers;
 
-namespace QIA.Opc.Infrastructure.Services.OPCUA
+public class TreeService
 {
-	public class TreeService
-	{
-		private readonly TreeManager treeManager;
-		private readonly IGenericRepository<TreeContainer> treeRepo;
-		private readonly SessionManager sessionManager;
+    private readonly TreeManager _treeManager;
+    private readonly SessionManager _sessionManager;
 
-		public TreeService(TreeManager treeManager,
-					 IGenericRepository<TreeContainer> treeRepo,
-					 SessionManager sessionManager)
-		{
-			this.treeManager = treeManager;
-			this.treeRepo = treeRepo;
-			this.sessionManager = sessionManager;
-		}
+    public TreeService(TreeManager treeManager,
+                 SessionManager sessionManager)
+    {
+        _treeManager = treeManager;
+        _sessionManager = sessionManager;
+    }
 
-		public async Task<ApiResponse<TreeContainer>> GetFullGraphAsync(string sessionGuid)
-		{
-			var treeData = await treeManager.BrowseTreeAsync(sessionGuid);
-			var textContent = JsonConvert.SerializeObject(treeData);
-			sessionManager.TryGetSession(sessionGuid, out var session);
-			TreeContainer treeContainer = new TreeContainer()
-			{
-				Data = textContent,
-				SourceName = session.Name,
-				CreatedAt = DateTime.UtcNow
-			};
-			await treeRepo.AddAsync(treeContainer);
+    public async Task<ApiResponse<TreeContainer>> GetFullGraphAsync(string sessionGuid)
+    {
+        TreeNode treeData = await _treeManager.BrowseTreeAsync(sessionGuid);
+        var textContent = JsonConvert.SerializeObject(treeData);
+        _sessionManager.TryGetSession(sessionGuid, out Entities.OPCUASession session);
+        TreeContainer treeContainer = new()
+        {
+            Data = textContent,
+            SourceName = session.Name,
+            CreatedAt = DateTime.UtcNow
+        };
 
-			return ApiResponse<TreeContainer>.Success(treeContainer);
+        return ApiResponse<TreeContainer>.Success(treeContainer);
+    }
 
-		}
-
-		public ApiResponse<TreeNode> BrowseChild(string sessionGuid, TreeNode node)
-		{
-			var result = treeManager.BrowseChildren(sessionGuid, node);
-			return ApiResponse<TreeNode>.Success(result);
-		}
-	}
+    public ApiResponse<TreeNode> BrowseChild(string sessionGuid, TreeNode node)
+    {
+        TreeNode result = _treeManager.BrowseChildren(sessionGuid, node);
+        return ApiResponse<TreeNode>.Success(result);
+    }
 }

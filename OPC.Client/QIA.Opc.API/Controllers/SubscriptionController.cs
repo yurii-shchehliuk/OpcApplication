@@ -1,140 +1,83 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using QIA.Opc.Domain.Common;
-using QIA.Opc.Domain.Entities;
-using QIA.Opc.Domain.Requests;
-using QIA.Opc.Domain.Responses;
-using QIA.Opc.Infrastructure.Services.OPCUA;
+namespace QIA.Opc.API.Controllers;
+
 using System.Web;
+using Microsoft.AspNetCore.Mvc;
+using QIA.Opc.Application.Requests;
+using QIA.Opc.Application.Responses;
+using QIA.Opc.Domain.Entities;
+using QIA.Opc.Infrastructure.Services.OPCUA;
 
-namespace QIA.Opc.API.Controllers
+public class SubscriptionController : BaseController
 {
-	public class SubscriptionController : BaseController
-	{
-		private readonly SubscriptionService subscriptionService;
+    private readonly SubscriptionService _subscriptionService;
 
-		public SubscriptionController(SubscriptionService subscriptionService)
-		{
-			this.subscriptionService = subscriptionService;
-		}
+    public SubscriptionController(SubscriptionService subscriptionService)
+    {
+        _subscriptionService = subscriptionService;
+    }
 
-		[HttpPost("create")]
-		public async Task<ActionResult<SubscriptionValue>> CreateSubscription([FromQuery] string nodeId, string sessionNodeId, [FromBody] SubscriptionRequest subsParams)
-		{
-			try
-			{
-				nodeId = HttpUtility.UrlDecode(nodeId);
-				var response = await subscriptionService.SubscribeAsync(sessionNodeId, subsParams, nodeId);
+    [HttpPost("create")]
+    public async Task<ActionResult<SubscriptionValue>> CreateSubscription([FromQuery] string nodeId, string sessionNodeId, [FromBody] SubscriptionRequest subsParams)
+    {
+        nodeId = HttpUtility.UrlDecode(nodeId);
+        Infrastructure.Application.ApiResponse<SubscriptionValue> response = await _subscriptionService.SubscribeAsync(sessionNodeId, subsParams, nodeId);
 
-				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+        return HandleResponse(response);
+    }
 
-		[HttpGet("list")]
-		public async Task<ActionResult<IEnumerable<SubscriptionValue>>> GetSubscriptions([FromQuery] string sessionNodeId)
-		{
-			try
-			{
-				var response = await subscriptionService.GetSubscriptions(sessionNodeId);
+    [HttpGet("list")]
+    public async Task<ActionResult<IEnumerable<SubscriptionValue>>> GetSubscriptions([FromQuery] string sessionNodeId)
+    {
+        Infrastructure.Application.ApiResponse<IEnumerable<SubscriptionValue>> response = await _subscriptionService.GetSubscriptions(sessionNodeId);
 
-				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+        return HandleResponse(response);
+    }
 
-		[HttpGet("{subscriptionId}")]
-		public async Task<ActionResult<SubscriptionConfig>> GetSubscriptionConfig([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, string subscriptionGuid)
-		{
-			try
-			{
-				var response = await subscriptionService.GetSubscriptionConfig(sessionNodeId, subscriptionId, subscriptionGuid);
+    [HttpGet]
+    public async Task<ActionResult<SubscriptionConfig>> GetSubscriptionConfig([FromQuery] string subscriptionGuid)
+    {
+        Infrastructure.Application.ApiResponse<SubscriptionConfig> response = await _subscriptionService.GetSubscriptionConfig(subscriptionGuid);
 
-				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+        return HandleResponse(response);
+    }
 
-		[HttpPut("modify")]
-		public async Task<IActionResult> ModifySubscription([FromQuery] string sessionNodeId, [FromBody] SubscriptionRequest subsParams)
-		{
-			try
-			{
-				var response = await subscriptionService.ModifySubscriptionAsync(sessionNodeId, subsParams);
+    [HttpPut("modify")]
+    public async Task<ActionResult<SubscriptionConfig>> ModifySubscription([FromQuery] string sessionNodeId, [FromBody] SubscriptionRequest subsParams)
+    {
+        Infrastructure.Application.ApiResponse<SubscriptionConfig> response = await _subscriptionService.ModifySubscriptionAsync(sessionNodeId, subsParams);
 
-				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+        return HandleResponse(response);
+    }
 
-		[HttpPut("setPublishingMode/{subscriptionId}")]
-		public async Task<ActionResult<SubscriptionValue>> SetPublishingMode([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, [FromBody] SubscriptionRequest request)
-		{
-			try
-			{
-				var response = subscriptionService.SetPublishingMode(sessionNodeId, subscriptionId, request.PublishingEnabled);
-				// if subscription is not activated, create a new one from database
-				if (response.Value == null)
-				{
-					response = await subscriptionService.SubscribeFromDbModel(sessionNodeId, request);
-				}
-				response.Value.Guid = request.Guid;
+    [HttpPut("setPublishingMode/{subscriptionId}")]
+    public async Task<ActionResult<SubscriptionValue>> SetPublishingMode([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, [FromBody] SubscriptionRequest request)
+    {
+        if (subscriptionId == 0)
+        {
+            // subscription is not activated, create a new one from database
+            Infrastructure.Application.ApiResponse<SubscriptionValue> subscribeFromDbModelResponse = await _subscriptionService.SubscribeFromDbModel(sessionNodeId, request);
+            return HandleResponse(subscribeFromDbModelResponse);
+        }
 
-				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+        // subscription been activated 
+        Infrastructure.Application.ApiResponse<SubscriptionValue> setPublishResponse = _subscriptionService.SetPublishingMode(sessionNodeId, subscriptionId, request);
 
-		[HttpPut("stopAll")]
-		public async Task<IActionResult> StopAllSubscriptions([FromQuery] string sessionNodeId)
-		{
-			try
-			{
-				var response = subscriptionService.StopAllSubscriptions(sessionNodeId);
-				
-				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+        return HandleResponse(setPublishResponse);
+    }
 
-		[HttpDelete("delete/{subscriptionId}")]
-		public async Task<IActionResult> DeleteSubscription([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, string subscriptionGuid)
-		{
-			try
-			{
-				var response = await subscriptionService.DeleteSubscriptionAsync(sessionNodeId, subscriptionId, subscriptionGuid);
+    [HttpPut("stopAll")]
+    public IActionResult StopAllSubscriptions([FromQuery] string sessionNodeId)
+    {
+        Infrastructure.Application.ApiResponse<bool> response = _subscriptionService.StopAllSubscriptions(sessionNodeId);
 
-				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+        return HandleResponse(response);
+    }
 
-	}
+    [HttpDelete("delete/{subscriptionId}")]
+    public async Task<IActionResult> DeleteSubscription([FromRoute] uint subscriptionId, [FromQuery] string sessionNodeId, string subscriptionGuid)
+    {
+        Infrastructure.Application.ApiResponse<bool> response = await _subscriptionService.DeleteSubscriptionAsync(sessionNodeId, subscriptionId, subscriptionGuid);
+
+        return HandleResponse(response);
+    }
 }

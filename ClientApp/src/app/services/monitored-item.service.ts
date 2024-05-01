@@ -9,6 +9,7 @@ import {
   SubscriptionValue,
 } from '../models/subscriptionModels';
 import { RequestObject } from '../models/requestObject';
+import { Observable, Subject } from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
@@ -16,6 +17,8 @@ import { RequestObject } from '../models/requestObject';
 export class MonitoredItemService {
   baseUrl = environment.server + 'monitoredItem/';
   currentSession: SessionEntity;
+
+  private nodeToRemoveSubj = new Subject<string>();
 
   constructor(
     private http: HttpClient,
@@ -28,15 +31,25 @@ export class MonitoredItemService {
     });
   }
 
+  get nodeToRemove$(): Observable<string> {
+    return this.nodeToRemoveSubj.asObservable();
+  }
+
+  set nodeToRemove$(node: string) {
+    this.nodeToRemoveSubj.next(node);
+  }
+
   addToSubscription(subscription: SubscriptionValue, nodeId: string) {
-    const url = `${this.baseUrl}addToSubscription`;
-    let request = <RequestObject>{
-      sessionGuid: this.currentSession.guid,
-      sessionNodeId: this.currentSession.sessionNodeId,
+    const queryParams = new URLSearchParams({
       subscriptionGuid: subscription.guid,
-      opcUaId: subscription.opcUaId,
-      nodeId: nodeId,
-    };  
+      subscriptionId: subscription.opcUaId.toString(),
+      sessionNodeId: this.currentSession.sessionNodeId,
+    }).toString();
+
+    let url = `${this.baseUrl}addToSubscription?${queryParams}`;
+
+    let request = nodeId;
+
     return this.http.post(url, request).subscribe();
   }
 
@@ -51,17 +64,6 @@ export class MonitoredItemService {
     return this.http.get(url);
   }
 
-  deleteMonitoredItem(subscriptionId: number, nodeId: string) {
-    const queryParams = new URLSearchParams({
-      nodeId: encodeURIComponent(nodeId),
-      sessionNodeId: this.currentSession.sessionNodeId,
-      subscriptionId: subscriptionId.toString(),
-    }).toString();
-
-    let url = `${this.baseUrl}delete?${queryParams}`;
-    return this.http.delete(url).subscribe();
-  }
-
   updateMonitoredItem(
     subscriptionId: number,
     nodeId: string,
@@ -74,5 +76,21 @@ export class MonitoredItemService {
 
     let url = `${this.baseUrl}update?${queryParams}`;
     return this.http.put(url, updatedItem).subscribe();
+  }
+
+  deleteMonitoredItem(
+    subscriptionId: number,
+    subscriptionGuid: string,
+    nodeId: string
+  ) {
+    const queryParams = new URLSearchParams({
+      nodeId: encodeURIComponent(nodeId),
+      sessionNodeId: this.currentSession.sessionNodeId,
+      subscriptionId: subscriptionId.toString(),
+      subscriptionGuid: subscriptionGuid,
+    }).toString();
+
+    let url = `${this.baseUrl}delete?${queryParams}`;
+    return this.http.delete(url).subscribe();
   }
 }

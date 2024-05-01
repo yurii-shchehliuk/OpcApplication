@@ -1,119 +1,131 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Qia.Opc.Persistence;
-using QIA.Opc.Domain.Repository;
+namespace QIA.Opc.Infrastructure.Repositories;
+
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
+using QIA.Opc.Domain.Repositories;
+using QIA.Opc.Infrastructure.DataAccess;
 
-namespace QIA.Opc.Infrastructure.Repositories
+public class GenericRepository<T> : IGenericRepository<T> where T : class, new()
 {
-	public class GenericRepository<T> : IGenericRepository<T> where T : class, new()
-	{
-		private readonly DbContext _context;
+    private readonly IDbContextFactory<OpcDbContext> _contextFactory;
 
-		public GenericRepository(DbContext contextFactory)
-		{
-			_context = contextFactory;
-		}
+    public GenericRepository(IDbContextFactory<OpcDbContext> contextFactory)
+    {
+        _contextFactory = contextFactory;
+    }
 
-		public virtual async Task<T> AddAsync(T entity)
-		{
-			// using var _context = _contextFactory.CreateDbContext();
-			await _context.Set<T>().AddAsync(entity);
-			await _context.SaveChangesAsync();
+    public virtual async Task<T> AddAsync(T entity)
+    {
+        using OpcDbContext context = _contextFactory.CreateDbContext();
+        await context.Set<T>().AddAsync(entity);
+        await context.SaveChangesAsync();
 
-			return entity;
-		}
+        return entity;
+    }
 
-		public virtual async Task<T> FindAsync(Expression<Func<T, bool>> filter, bool asNoTracking = false, params Expression<Func<T, object>>[] includes)
-		{
-			// using var _context = _contextFactory.CreateDbContext();
-			var query = _context.Set<T>().Where(filter);
+    public virtual async Task<T> FindAsync(Expression<Func<T, bool>> filter, bool asNoTracking = false, params Expression<Func<T, object>>[] includes)
+    {
+        using OpcDbContext context = _contextFactory.CreateDbContext();
+        IQueryable<T> query = context.Set<T>().Where(filter);
 
-			if (includes != null)
-			{
-				foreach (var include in includes)
-				{
-					query = query.Include(include);
-				}
-			}
+        if (includes != null)
+        {
+            foreach (Expression<Func<T, object>> include in includes)
+            {
+                query = query.Include(include);
+            }
+        }
 
-			return await query.FirstOrDefaultAsync();
-		}
+        return await query.FirstOrDefaultAsync();
+    }
 
-		public virtual async Task<IEnumerable<T>> ListAllAsync(Expression<Func<T, bool>> filter = null, bool asNoTracking = false, params Expression<Func<T, object>>[] includes)
-		{
-			// using var _context = _contextFactory.CreateDbContext();
-			IQueryable<T> query = _context.Set<T>();
+    public virtual async Task<IEnumerable<T>> ListAllAsync(Expression<Func<T, bool>> filter = null, bool asNoTracking = false, params Expression<Func<T, object>>[] includes)
+    {
+        using OpcDbContext context = _contextFactory.CreateDbContext();
+        IQueryable<T> query = context.Set<T>();
 
-			if (filter != null)
-			{
-				query = query.Where(filter);
-			}
+        if (filter != null)
+        {
+            query = query.Where(filter);
+        }
 
-			if (includes != null)
-			{
-				foreach (var include in includes)
-				{
-					query = query.Include(include);
-				}
-			}
+        if (includes != null)
+        {
+            foreach (Expression<Func<T, object>> include in includes)
+            {
+                query = query.Include(include);
+            }
+        }
 
-			return await query.ToListAsync();
-		}
+        return await query.ToListAsync();
+    }
 
-		public virtual async Task UpsertAsync(T entity, Expression<Func<T, bool>> filter)
-		{
-			if (entity == null) return;
+    public virtual async Task UpsertAsync(T entity, Expression<Func<T, bool>> filter)
+    {
+        if (entity == null)
+        {
+            return;
+        }
 
-			// using var _context = _contextFactory.CreateDbContext();
-			var existingEntity = await _context.Set<T>().FirstOrDefaultAsync(filter);
+        using OpcDbContext context = _contextFactory.CreateDbContext();
+        T existingEntity = await context.Set<T>().FirstOrDefaultAsync(filter);
 
-			if (existingEntity != null)
-			{
-				///TODO: handle conqurency
-				_context.Update(existingEntity);
-			}
-			else
-			{
-				await _context.Set<T>().AddAsync(entity);
-			}
+        if (existingEntity != null)
+        {
+            ///TODO: handle conqurency
+            context.Update(existingEntity);
+        }
+        else
+        {
+            await context.Set<T>().AddAsync(entity);
+        }
 
-			await _context.SaveChangesAsync();
-		}
+        await context.SaveChangesAsync();
+    }
 
-		public virtual async Task UpdateAsync(T entity)
-		{
-			if (entity == null) return;
+    public virtual async Task UpdateAsync(T updatedItem)
+    {
+        if (updatedItem == null)
+        {
+            return;
+        }
 
-			// using var _context = _contextFactory.CreateDbContext();
-			///TODO: handle conqurency
-			_context.Update(entity);
-			await _context.SaveChangesAsync();
-		}
+        using OpcDbContext context = _contextFactory.CreateDbContext();
+        ///TODO: handle conqurency
+        context.Update(updatedItem);
+        await context.SaveChangesAsync();
+    }
 
-		public virtual async Task DeleteAsync(T entity)
-		{
-			// using var _context = _contextFactory.CreateDbContext();
-			if (entity == null) return;
+    public virtual async Task DeleteAsync(T entity)
+    {
+        using OpcDbContext context = _contextFactory.CreateDbContext();
+        if (entity == null)
+        {
+            return;
+        }
 
-			_context.Set<T>().Remove(entity);
-			await _context.SaveChangesAsync();
-		}
+        context.Set<T>().Remove(entity);
+        await context.SaveChangesAsync();
+    }
 
-		public virtual async Task DeleteAsync(Expression<Func<T, bool>> filter)
-		{
-			// using var _context = _contextFactory.CreateDbContext();
-			var result = await _context.Set<T>().FirstOrDefaultAsync(filter);
+    public virtual async Task DeleteAsync(Expression<Func<T, bool>> filter)
+    {
+        using OpcDbContext context = _contextFactory.CreateDbContext();
+        T result = await context.Set<T>().FirstOrDefaultAsync(filter);
 
-			if (result == null) return;
-			_context.Set<T>().Remove(result);
-			await _context.SaveChangesAsync();
+        if (result == null)
+        {
+            return;
+        }
 
-		}
+        context.Set<T>().Remove(result);
+        await context.SaveChangesAsync();
 
-		public async Task SaveChangesAsync()
-		{
-			// using var _context = _contextFactory.CreateDbContext();
-			await _context.SaveChangesAsync();
-		}
-	}
+    }
+
+    public async Task SaveChangesAsync()
+    {
+        using OpcDbContext context = _contextFactory.CreateDbContext();
+        await context.SaveChangesAsync();
+    }
 }

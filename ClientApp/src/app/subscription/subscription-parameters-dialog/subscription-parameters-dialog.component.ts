@@ -4,6 +4,8 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { SubscriptionConfig } from 'src/app/models/subscriptionModels';
 import { SharedService } from 'src/app/shared/shared.service';
 import { SubscriptionService } from 'src/app/services/subscription.service';
+import { BaseComponent } from 'src/app/shared/components/base/base.component';
+import { takeUntil } from 'rxjs';
 
 export interface income {
   nodeId: string;
@@ -14,7 +16,10 @@ export interface income {
   templateUrl: './subscription-parameters-dialog.component.html',
   styleUrls: ['./subscription-parameters-dialog.component.scss'],
 })
-export class SubscriptionParametersDialogComponent implements OnInit {
+export class SubscriptionParametersDialogComponent
+  extends BaseComponent
+  implements OnInit
+{
   subscriptionParametersForm: FormGroup;
   isAddMode: boolean = true;
 
@@ -25,14 +30,15 @@ export class SubscriptionParametersDialogComponent implements OnInit {
     public dialogRef: MatDialogRef<SubscriptionParametersDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: income
   ) {
+    super();
     this.subscriptionParametersForm = this.fb.group({
       opcUaId: [0],
       guid: [''],
       displayName: ['', Validators.required],
       maxValue: [0, Validators.required],
       minValue: [0, Validators.required],
-      publishingInterval: [1000, Validators.required],
       keepAliveCount: [10, Validators.required],
+      publishingInterval: [1000, Validators.required],
       lifetimeCount: [1000, Validators.required],
       maxNotificationsPerPublish: [0, Validators.required],
       priority: [255, Validators.required],
@@ -50,10 +56,7 @@ export class SubscriptionParametersDialogComponent implements OnInit {
           next: (paramaters: SubscriptionConfig) => {
             this.subscriptionParametersForm = this.fb.group({
               opcUaId: [this.data.subscription.opcUaId],
-              guid: [
-                this.data.subscription.guid ??
-                  paramaters?.guid,
-              ],
+              guid: [this.data.subscription.guid ?? paramaters?.guid],
               displayName: [paramaters?.displayName ?? '', Validators.required],
               maxValue: [paramaters?.maxValue ?? 0, Validators.required],
               minValue: [paramaters?.minValue ?? 0, Validators.required],
@@ -105,9 +108,15 @@ export class SubscriptionParametersDialogComponent implements OnInit {
   }
 
   private modifySubscription() {
-    this.subscriptionService.modifySubs(
-      this.subscriptionParametersForm.value as SubscriptionConfig
-    );
+    this.subscriptionService
+      .modifySubs(this.subscriptionParametersForm.value as SubscriptionConfig)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (value) => {},
+        error: (err) => {
+          console.error(err);
+        },
+      });
     this.updateChart();
   }
 

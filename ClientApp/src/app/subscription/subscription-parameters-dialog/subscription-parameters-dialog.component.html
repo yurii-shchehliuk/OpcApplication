@@ -7,15 +7,15 @@
         </mat-form-field>
         <mat-form-field>
             <mat-label>Max Value</mat-label>
-            <input matInput type="number" min="0" max="1000000000" step="1000" formControlName="maxValue">
+            <input matInput type="number" min="-200" max="1000" step="1" formControlName="maxValue">
         </mat-form-field>
         <mat-form-field>
             <mat-label>Min Value</mat-label>
-            <input matInput type="number" min="0" max="1000000000" step="1000" formControlName="minValue">
+            <input matInput type="number" min="-200" max="1000" step="1" formControlName="minValue">
         </mat-form-field>
         <mat-form-field>
-            <mat-label>Publishing Interval</mat-label>
-            <input matInput type="number" min="0" max="1000000000" step="1000" formControlName="publishingInterval">
+            <mat-label>Publishing Interval (ms)</mat-label>
+            <input matInput type="number" min="0" max="1000000" step="1000" formControlName="publishingInterval">
         </mat-form-field>
         <mat-form-field>
             <mat-label>Keep Alive Count</mat-label>
@@ -39,6 +39,6 @@
     </mat-dialog-content>
     <mat-dialog-actions align="end">
         <button mat-flat-button mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit" mat-dialog-close>Ok</button>
+        <button mat-flat-button type="submit" mat-dialog-close="true">Ok</button>
     </mat-dialog-actions>
 </form>

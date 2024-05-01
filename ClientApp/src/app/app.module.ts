@@ -33,6 +33,7 @@ import { ToastrModule } from 'ngx-toastr';
 import { SubscriptionComponent } from './subscription/subscription.component';
 import { SubscriptionParametersDialogComponent } from './subscription/subscription-parameters-dialog/subscription-parameters-dialog.component';
 import { MonitoringItemDialogComponent } from './subscription/monitoring-item-dialog/monitoring-item-dialog.component';
+import { BaseComponent } from './shared/components/base/base.component';
 
 @NgModule({
   declarations: [
@@ -44,6 +45,7 @@ import { MonitoringItemDialogComponent } from './subscription/monitoring-item-di
     SubscriptionComponent,
     SubscriptionParametersDialogComponent,
     MonitoringItemDialogComponent,
+    BaseComponent,
   ],
   imports: [
     BrowserModule,

@@ -77,7 +77,7 @@ export class SubscriptionService {
       subscriptionGuid: subscription.guid,
     }).toString();
 
-    let url = `${this.baseUrl}${subscription.opcUaId}?${queryParams}`;
+    let url = `${this.baseUrl}?${queryParams}`;
     return this.http.get<SubscriptionConfig>(url);
   }
 
@@ -87,7 +87,7 @@ export class SubscriptionService {
     }).toString();
 
     let url = `${this.baseUrl}modify?${queryParams}`;
-    return this.http.put(url, subscriptionParams).subscribe();
+    return this.http.put(url, subscriptionParams);
   }
 
   setPublishingMode(subscription: SubscriptionValue) {
@@ -111,6 +111,7 @@ export class SubscriptionService {
   deleteSubs(subscription: SubscriptionValue) {
     const queryParams = new URLSearchParams({
       subscriptionGuid: subscription.guid,
+      subscriptionId: subscription.opcUaId.toString(),
       sessionNodeId: this.currentSession.sessionNodeId,
     }).toString();
 

@@ -1,9 +1,8 @@
-﻿namespace Qia.Opc.Domain.Entities.Enums
+﻿namespace Qia.Opc.Domain.Entities.Enums;
+
+public enum SessionState
 {
-	public enum SessionState
-	{
-		Connected,
-		Disconnected,
-		Connecting
-	}
+    Connected,
+    Disconnected,
+    Connecting
 }

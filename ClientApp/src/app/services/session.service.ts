@@ -32,15 +32,14 @@ export class SessionService {
     return this.selectedSessionSubject.asObservable();
   }
 
-  getSessionList() {
-    let url = `${this.baseUrl}list`;
-    this.http.get<SessionEntity[]>(url).subscribe((data: SessionEntity[]) => {
-      this.sessionListSubject.next(data);
-    });
+  setSessionIsNotActive() {
+    this.currentSession.state = SessionState.disconnected;
+    this.selectedSessionSubject.next(this.currentSession);
   }
 
   createEndpoint(session: SessionEntity) {
     let url = `${this.baseUrl}create`;
+    
     return this.http.post<SessionEntity>(url, session).subscribe({
       next: (response: SessionEntity) => {
         this.notifyService.showSuccess('Added successfully', '');
@@ -76,9 +75,11 @@ export class SessionService {
     });
   }
 
-  disconnect(session: SessionEntity) {
-    let url = `${this.baseUrl}disconnect?sessionNodeId=${session.sessionNodeId ?? ''}`;
-    return this.http.delete<SessionEntity>(url);
+  getSessionList() {
+    let url = `${this.baseUrl}list`;
+    this.http.get<SessionEntity[]>(url).subscribe((data: SessionEntity[]) => {
+      this.sessionListSubject.next(data);
+    });
   }
 
   updateSession(session: SessionEntity): Subscription {
@@ -96,9 +97,7 @@ export class SessionService {
   }
 
   deleteSession(session: SessionEntity): Subscription {
-    let url = `${this.baseUrl}delete?guid=${
-      session.guid ?? ''
-    }`;
+    let url = `${this.baseUrl}delete?guid=${session.guid ?? ''}`;
     return this.http.delete(url).subscribe({
       next: () => {
         // this.selectedSession.next(
@@ -107,5 +106,12 @@ export class SessionService {
         sessionStorage.removeItem(this.SESSION_KEY + session.name);
       },
     });
+  }
+
+  disconnect(session: SessionEntity) {
+    let url = `${this.baseUrl}disconnect?sessionNodeId=${
+      session.sessionNodeId ?? ''
+    }`;
+    return this.http.delete<SessionEntity>(url);
   }
 }

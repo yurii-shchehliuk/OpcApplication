@@ -1,327 +1,290 @@
-﻿using AutoMapper;
-using Opc.Ua;
-using Opc.Ua.Client;
-using Qia.Opc.Domain.Common;
-using Qia.Opc.Domain.Core;
+namespace QIA.Opc.Infrastructure.Services.OPCUA;
+
+using System.Net;
+using AutoMapper;
+using global::Opc.Ua.Client;
 using Qia.Opc.Domain.Entities;
-using Qia.Opc.OPCUA.Connector.Managers;
-using QIA.Opc.Domain.Common;
+using QIA.Opc.Application.Requests;
+using QIA.Opc.Application.Responses;
 using QIA.Opc.Domain.Entities;
-using QIA.Opc.Domain.Repository;
-using QIA.Opc.Domain.Requests;
-using QIA.Opc.Domain.Responses;
+using QIA.Opc.Domain.Repositories;
+using QIA.Opc.Infrastructure.Application;
+using QIA.Opc.Infrastructure.Extensions;
+using QIA.Opc.Infrastructure.Managers;
 using QIA.Opc.Infrastructure.Services.Communication;
 
-namespace QIA.Opc.Infrastructure.Services.OPCUA
+/// <summary>
+/// </summary>
+/// <remarks>in this service every ApiResponse is bool because everything is based on events of the OPC UA library</remarks>
+public class SubscriptionService
 {
-	/// <summary>
-	/// </summary>
-	/// <remarks>in this service every ApiResponse is bool because everything is based on events of the OPC UA library</remarks>
-	public class SubscriptionService
-	{
-		private readonly SessionManager sessionManager;
-		private readonly SubscriptionManager subscriptionManager;
-		private readonly IGenericRepository<SubscriptionConfig> subscriptionConfigRepo;
-		private readonly SignalRService signalRService;
-		private readonly IMapper mapper;
-		private readonly MonitoredItemService monitoredItemService;
+    private readonly SubscriptionManager _subscriptionManager;
+    private readonly IGenericRepository<SubscriptionConfig> _subscriptionConfigRepo;
+    private readonly SignalRService _signalRService;
+    private readonly IMapper _mapper;
+    private readonly QueueService _queueService;
+    private readonly MonitoredItemService _monitoredItemService;
+    private readonly AzureMessageService _azureMS;
 
-		public SubscriptionService(SessionManager sessionManager,
-							 SubscriptionManager subscriptionManager,
-							 SignalRService signalRService,
-							 MonitoredItemService monitoredItemService,
-							 IGenericRepository<SubscriptionConfig> subscriptionConfigRepo,
-							 IMapper mapper)
-		{
-			this.sessionManager = sessionManager;
-			this.subscriptionManager = subscriptionManager;
-			this.signalRService = signalRService;
-			this.monitoredItemService = monitoredItemService;
-			this.subscriptionConfigRepo = subscriptionConfigRepo;
-			this.mapper = mapper;
-			subscriptionManager.Session_NotificationEvent += SubscriptionManager_SessionNotificationEvent;
-		}
+    public SubscriptionService(SubscriptionManager subscriptionManager,
+                         SignalRService signalRService,
+                         MonitoredItemService monitoredItemService,
+                         AzureMessageService azureMS,
+                         IGenericRepository<SubscriptionConfig> subscriptionConfigRepo,
+                         QueueService queueService,
+                         IMapper mapper)
+    {
+        _subscriptionManager = subscriptionManager;
+        _signalRService = signalRService;
+        _monitoredItemService = monitoredItemService;
+        _azureMS = azureMS;
+        _subscriptionConfigRepo = subscriptionConfigRepo;
+        _mapper = mapper;
+        _queueService = queueService;
+        _subscriptionManager.Session_NotificationEvent += SubscriptionManager_SessionNotificationEvent;
+    }
 
-		public async Task<ApiResponse<SubscriptionValue>> SubscribeAsync(string sessionNodeId, SubscriptionRequest subsParams, string nodeId)
-		{
-			try
-			{
-				if (!nodeId.TryParseNodeId(out var node))
-					return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"NodeId {nodeId} cannot be parsed");
+    public async Task<ApiResponse<SubscriptionValue>> SubscribeAsync(string sessionNodeId, SubscriptionRequest subsParams, string nodeId)
+    {
+        try
+        {
+            if (!nodeId.TryParseNodeId(out global::Opc.Ua.NodeId node))
+            {
+                return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"NodeId {nodeId} cannot be parsed");
+            }
 
-				// create subscription
-				var subscriptionGuid = Guid.NewGuid().ToString();
-				subsParams.Guid = subscriptionGuid;
-				var subscription = subscriptionManager.Subscribe(sessionNodeId, subsParams, out var session);
-				if (subscription == null)
-					return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest);
+            if (subsParams.Guid == "")
+            {
+                subsParams.Guid = Guid.NewGuid().ToString();
+            }
 
-				// prepare subscription config
-				var subsConfig = mapper.Map<SubscriptionConfig>(subscription);
-				subsConfig.SessionGuid = session.Guid;
-				subsConfig.Guid = subsParams.Guid;
+            // create subscription
+            Subscription subscription = _subscriptionManager.Subscribe(sessionNodeId, subsParams, out Entities.OPCUASession session);
+            if (subscription == null)
+            {
+                return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest);
+            }
 
-				// add item to subscription
-				var monItemResponse = monitoredItemService.AddItemToSubscription(sessionNodeId, subscription, nodeId);
-				if (!monItemResponse.IsSuccess)
-					return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"Cannot add {nodeId} to monitoring");
+            // prepare subscription config
+            SubscriptionConfig subsConfig = _mapper.Map<SubscriptionConfig>(subscription);
+            subsConfig.SessionGuid = session.Guid;
+            subsConfig.Guid = subsParams.Guid;
+            subsConfig.MaxValue = subsParams.MaxValue;
+            subsConfig.MinValue = subsParams.MinValue;
+            // add item to subscription
+            ApiResponse<MonitoredItem> monItemResponse = _monitoredItemService.AddItemToSubscription(sessionNodeId, subscription, nodeId);
+            if (!monItemResponse.IsSuccess)
+            {
+                return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"Cannot add {nodeId} to monitoring");
+            }
 
-				//prepare and save
-				var monItemCfg = mapper.Map<MonitoredItemConfig>(monItemResponse.Value);
-				monItemCfg.SubscriptionGuid = subsConfig.Guid;
+            //prepare and save
+            MonitoredItemConfig monItemCfg = _mapper.Map<MonitoredItemConfig>(monItemResponse.Value);
+            monItemCfg.SubscriptionGuid = subsConfig.Guid;
 
-				subsConfig.MonitoredItemsConfig.Add(monItemCfg);
+            subsConfig.MonitoredItemsConfig.Add(monItemCfg);
 
-				await subscriptionConfigRepo.AddAsync(subsConfig);
+            await _subscriptionConfigRepo.AddAsync(subsConfig);
 
-				// return updated subscription
-				var subscriptionValue = mapper.Map<SubscriptionValue>(subscription);
-				subscriptionValue.Guid = subsConfig.Guid;
+            // return updated subscription
+            SubscriptionValue subscriptionValue = _mapper.Map<SubscriptionValue>(subscription);
+            subscriptionValue.Guid = subsConfig.Guid;
+            subscriptionValue.MaxValue = subsParams.MaxValue;
+            subscriptionValue.MinValue = subsParams.MinValue;
 
-				return ApiResponse<SubscriptionValue>.Success(subscriptionValue);
-			}
-			catch (Exception ex)
-			{
-				return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"Cannot subscribe to the node: {ex.Message} \n{ex.InnerException?.Message ?? ""}");
-			}
-		}
+            return ApiResponse<SubscriptionValue>.Success(subscriptionValue);
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"Cannot subscribe to the node: {ex.Message} \n{ex.InnerException?.Message ?? ""}");
+        }
+    }
 
-		public async Task<ApiResponse<SubscriptionValue>> SubscribeFromDbModel(string sessionNodeId, SubscriptionRequest request)
-		{
-			// create opcSubscription
-			var opcSubscription = subscriptionManager.Subscribe(sessionNodeId, request, out _);
-			if (opcSubscription == null)
-				return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest);
+    public async Task<ApiResponse<SubscriptionValue>> SubscribeFromDbModel(string sessionNodeId, SubscriptionRequest request)
+    {
+        // create opcSubscription
+        Subscription opcSubscription = _subscriptionManager.Subscribe(sessionNodeId, request, out _);
+        if (opcSubscription == null)
+        {
+            return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest);
+        }
 
-			var subscription = await subscriptionConfigRepo.FindAsync(c => c.Guid == request.Guid, true, includes: c => c.MonitoredItemsConfig);
+        SubscriptionConfig subscription = await _subscriptionConfigRepo.FindAsync(c => c.Guid == request.Guid, true, includes: c => c.MonitoredItemsConfig);
 
-			// add items to subscription
-			foreach (var monItemCfg in subscription.MonitoredItemsConfig)
-			{
-				var monItemResponse = monitoredItemService.AddItemToSubscription(sessionNodeId, opcSubscription, monItemCfg.StartNodeId);
+        // add items to subscription
+        foreach (MonitoredItemConfig monItemCfg in subscription.MonitoredItemsConfig)
+        {
+            ApiResponse<MonitoredItem> monItemResponse = _monitoredItemService.AddItemToSubscription(sessionNodeId, opcSubscription, monItemCfg.StartNodeId);
 
-				if (!monItemResponse.IsSuccess)
-					return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"Cannot add to monitoring");
-			}
+            if (!monItemResponse.IsSuccess)
+            {
+                return ApiResponse<SubscriptionValue>.Failure(HttpStatusCode.BadRequest, $"Cannot add to monitoring");
+            }
+        }
 
-			var subscriptionValue = mapper.Map<SubscriptionValue>(opcSubscription);
-			return ApiResponse<SubscriptionValue>.Success(subscriptionValue);
-		}
+        SubscriptionValue subscriptionValue = _mapper.Map<SubscriptionValue>(opcSubscription);
+        subscriptionValue.MaxValue = subscription.MaxValue;
+        subscriptionValue.MinValue = subscription.MinValue;
+        return ApiResponse<SubscriptionValue>.Success(subscriptionValue);
+    }
 
-		public async Task<ApiResponse<IEnumerable<SubscriptionValue>>> GetSubscriptions(string sessionNodeId)
-		{
-			var activeSubscriptionsResponse = subscriptionManager.GetActiveOpcSubscriptions(sessionNodeId, out var sessionGuid);
-			var savedSubscriptionsResponse = await subscriptionConfigRepo.ListAllAsync(c => c.SessionGuid == sessionGuid, true, c => c.MonitoredItemsConfig);
+    public async Task<ApiResponse<IEnumerable<SubscriptionValue>>> GetSubscriptions(string sessionNodeId)
+    {
+        IEnumerable<Entities.OPCUASubscription> activeSubscriptionsResponse = _subscriptionManager.GetActiveOpcSubscriptions(sessionNodeId, out var sessionGuid);
+        IEnumerable<SubscriptionConfig> savedSubscriptionsResponse = await _subscriptionConfigRepo.ListAllAsync(c => c.SessionGuid == sessionGuid, true, c => c.MonitoredItemsConfig);
 
-			var activeSubscriptions = mapper.Map<IEnumerable<SubscriptionValue>>(activeSubscriptionsResponse);
-			var savedSubscriptions = mapper.Map<IEnumerable<SubscriptionValue>>(savedSubscriptionsResponse);
+        IEnumerable<SubscriptionValue> activeSubscriptions = _mapper.Map<IEnumerable<SubscriptionValue>>(activeSubscriptionsResponse);
+        IEnumerable<SubscriptionValue> savedSubscriptions = _mapper.Map<IEnumerable<SubscriptionValue>>(savedSubscriptionsResponse);
 
-			// Merging the subscriptions
-			var mergedSubscriptions = savedSubscriptions
-				.GroupJoin(activeSubscriptions,
-					saved => saved.Guid,
-					active => active.Guid,
-					(saved, activeGroup) => activeGroup.Any() ? activeGroup.First() : saved)
-				 .Select(subscription =>
-				 {
-					 subscription.SessionNodeId = sessionNodeId;
-					 return subscription;
-				 });
+        // Merging the subscriptions
+        IEnumerable<SubscriptionValue> mergedSubscriptions = savedSubscriptions
+            .GroupJoin(activeSubscriptions,
+                saved => saved.Guid,
+                active => active.Guid,
+                (saved, activeGroup) => activeGroup.Any() ? activeGroup.First() : saved)
+             .Select(subscription =>
+             {
+                 subscription.SessionNodeId = sessionNodeId;
+                 return subscription;
+             });
 
-			try
-			{
-				//TODO: get rid of that
-				foreach (var item in mergedSubscriptions)
-				{
-					await signalRService.SendSubscriptionAsync(item, sessionNodeId);
-				}
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("Get subscriptions: {0}", ex.Message);
-			}
+        try
+        {
+            //TODO: get rid of that
+            foreach (SubscriptionValue item in mergedSubscriptions)
+            {
+                await _signalRService.SendSubscriptionAsync(item, sessionNodeId);
+            }
+        }
+        catch (Exception ex)
+        {
+            LoggerManager.Logger.Error("Get subscriptions: {0}", ex.Message);
+        }
 
-			return ApiResponse<IEnumerable<SubscriptionValue>>.Success(mergedSubscriptions);
-		}
+        return ApiResponse<IEnumerable<SubscriptionValue>>.Success(mergedSubscriptions);
+    }
 
-		/// <param name="subscriptionId">when subscription is from value with opc server</param>
-		/// <param name="subscriptionGuid">when subscription is from database</param>
-		/// currently works only when subscribed. TODO: pass guid from UI
-		public async Task<ApiResponse<SubscriptionConfig>> GetSubscriptionConfig(string sessionNodeId, uint subscriptionId, string subscriptionGuid = "")
-		{
-			subscriptionManager.GetSubscription(sessionNodeId, subscriptionId, out var subscriptionGuidMemo);
-			var subscription = await subscriptionConfigRepo.FindAsync(c => c.Guid == (string.IsNullOrEmpty(subscriptionGuidMemo) ? subscriptionGuid : subscriptionGuidMemo), true);
-			if (subscription == null)
-			{
-				return ApiResponse<SubscriptionConfig>.Failure(HttpStatusCode.NotFound);
-			}
+    /// <param name="subscriptionId">when subscription is from value with opc server</param>
+    /// <param name="subscriptionGuid">when subscription is from database</param>
+    /// currently works only when subscribed. TODO: pass guid from UI
+    public async Task<ApiResponse<SubscriptionConfig>> GetSubscriptionConfig(string subscriptionGuid)
+    {
+        SubscriptionConfig subscription = await _subscriptionConfigRepo.FindAsync(c => c.Guid == subscriptionGuid, true);
+        if (subscription == null)
+        {
+            return ApiResponse<SubscriptionConfig>.Failure(HttpStatusCode.NotFound);
+        }
 
-			//handle unexpected
-			return ApiResponse<SubscriptionConfig>.Success(subscription);
-		}
+        //handle unexpected
+        return ApiResponse<SubscriptionConfig>.Success(subscription);
+    }
 
-		public async Task<ApiResponse<bool>> ModifySubscriptionAsync(string sessionNodeId, SubscriptionRequest subsParams)
-		{
-			this.subscriptionManager.Modify(sessionNodeId, subsParams, out var subscriptionGuidMemo);
+    public async Task<ApiResponse<SubscriptionConfig>> ModifySubscriptionAsync(string sessionNodeId, SubscriptionRequest subsParams)
+    {
+        _subscriptionManager.Modify(sessionNodeId, subsParams);
 
-			var subsUpdated = await subscriptionConfigRepo.FindAsync(c => c.Guid == (string.IsNullOrEmpty(subscriptionGuidMemo) ? subsParams.Guid : subscriptionGuidMemo));
+        SubscriptionConfig subsUpdated = await _subscriptionConfigRepo.FindAsync(c => c.Guid == subsParams.Guid);
 
-			mapper.Map(subsParams, subsUpdated);
-			subsUpdated.UpdatedAt = DateTime.UtcNow;
+        _mapper.Map(subsParams, subsUpdated);
+        subsUpdated.UpdatedAt = DateTime.UtcNow;
 
-			await subscriptionConfigRepo.UpdateAsync(subsUpdated);
+        await _subscriptionConfigRepo.UpdateAsync(subsUpdated);
 
-			return ApiResponse<bool>.Success(true);
-		}
+        return ApiResponse<SubscriptionConfig>.Success(subsUpdated);
+    }
 
-		public ApiResponse<SubscriptionValue> SetPublishingMode(string sessionNodeId, uint subscriptionId, bool enable)
-		{
-			var result = subscriptionManager.SetPublishingMode(sessionNodeId, subscriptionId, enable);
-			if (result == null) return ApiResponse<SubscriptionValue>.Success(null, HttpStatusCode.NotFound);
-			var subscriptionValue = mapper.Map<SubscriptionValue>(result);
+    public ApiResponse<SubscriptionValue> SetPublishingMode(string sessionNodeId, uint subscriptionId, SubscriptionRequest request)
+    {
+        Subscription result = _subscriptionManager.SetPublishingMode(sessionNodeId, subscriptionId, request.PublishingEnabled);
 
-			return ApiResponse<SubscriptionValue>.Success(subscriptionValue);
-		}
+        if (result == null)
+        {
+            return ApiResponse<SubscriptionValue>.Success(null, HttpStatusCode.NotFound);
+        }
 
-		public ApiResponse<bool> StopAllSubscriptions(string sessionNodeId)
-		{
-			var activeSubscriptionsResponse = subscriptionManager.GetActiveOpcSubscriptions(sessionNodeId, out var sessionGuid);
+        SubscriptionValue subscriptionValue = _mapper.Map<SubscriptionValue>(result);
+        subscriptionValue.MaxValue = request.MaxValue;
+        subscriptionValue.MinValue = request.MinValue;
+        return ApiResponse<SubscriptionValue>.Success(subscriptionValue);
+    }
 
-			foreach (var item in activeSubscriptionsResponse)
-			{
-				subscriptionManager.SetPublishingMode(sessionNodeId, item.Subscription.Id, false);
-			}
+    public ApiResponse<bool> StopAllSubscriptions(string sessionNodeId)
+    {
+        IEnumerable<Entities.OPCUASubscription> activeSubscriptionsResponse = _subscriptionManager.GetActiveOpcSubscriptions(sessionNodeId, out _);
 
-			return ApiResponse<bool>.Success();
-		}
+        foreach (Entities.OPCUASubscription item in activeSubscriptionsResponse)
+        {
+            _subscriptionManager.SetPublishingMode(sessionNodeId, item.Subscription.Id, false);
+        }
 
-		public async Task<ApiResponse<bool>> DeleteSubscriptionAsync(string sessionNodeId, uint subscriptionId, string subscriptionGuid)
-		{
-			var result = subscriptionManager.DeleteSubscription(sessionNodeId, subscriptionId, out var subscriptionGuidMemo);
+        return ApiResponse<bool>.Success();
+    }
 
-			var subsToDelete = await subscriptionConfigRepo.FindAsync(c => c.Guid == (string.IsNullOrEmpty(subscriptionGuidMemo) ? subscriptionGuid : subscriptionGuidMemo));
-			await subscriptionConfigRepo.DeleteAsync(subsToDelete);
+    public async Task<ApiResponse<bool>> DeleteSubscriptionAsync(string sessionNodeId, uint subscriptionId, string subscriptionGuid)
+    {
+        _subscriptionManager.DeleteSubscription(sessionNodeId, subscriptionId, out _);
 
-			return ApiResponse<bool>.Success(true);
-		}
+        SubscriptionConfig subsToDelete = await _subscriptionConfigRepo.FindAsync(c => c.Guid == subscriptionGuid);
+        await _subscriptionConfigRepo.DeleteAsync(subsToDelete);
 
-		private async Task SendSubscriptionAsync(SubscriptionValue subscriptionResponce)
-		{
-			LoggerManager.Logger.Information($"[monitoring subscription] Name: {subscriptionResponce.DisplayName} SessionId: {subscriptionResponce.SessionNodeId} Interval:{subscriptionResponce.PublishingInterval}");
+        return ApiResponse<bool>.Success(true);
+    }
 
-			await signalRService.SendSubscriptionAsync(subscriptionResponce, subscriptionResponce.SessionNodeId);
-		}
-
-		#region events
-		/// avoid stackoverflow
-		private bool isHandlingEvent = false;
-		private SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
-		private HashSet<uint> processedSequences = new HashSet<uint>(); 
-		int index = 1;
-		private void SubscriptionManager_SessionNotificationEvent(object senderSession, NotificationEventArgs e)
-		{
-			if (isHandlingEvent)
-			{
-				isHandlingEvent = false;
-				return;
-			}
-
-			if (processedSequences.Contains(e.NotificationMessage.SequenceNumber))
-			{
-				return;
-			}
+    #region events
 
 
-			_semaphore.Wait();
-			try
-			{
-				string eventDetails = $"{e.Subscription.Session.SessionId}:{e.NotificationMessage.SequenceNumber}:{e.NotificationMessage.PublishTime}";
-				LoggerManager.Logger.Information($"Processing event {index}: {eventDetails}");
+    private void SubscriptionManager_SessionNotificationEvent(object senderSession, NotificationEventArgs e)
+    {
+        try
+        {
+            List<global::Opc.Ua.MonitoredItemNotification> changes = _queueService.GetChanges(e);
+            if (changes == null)
+            {
+                return;
+            }
 
-				isHandlingEvent = true;
+            SubscriptionValue subscriptionValue = _queueService.GetSubscription(changes);
 
-				index++;
-				// get the changes.
-				List<MonitoredItemNotification> changes = new List<MonitoredItemNotification>();
-				foreach (MonitoredItemNotification change in e.NotificationMessage.GetDataChanges(false))
-				{
-					if (e.Subscription.FindItemByClientHandle(change.ClientHandle) == null)
-					{
-						continue;
-					}
-					changes.Add(change);
-				}
+            if (subscriptionValue == null)
+            {
+                return;
+            }
+            //TODO: check if subscription is unique
+            SendSubscription(subscriptionValue);
+        }
+        catch (Exception ex)
+        {
+            LoggerManager.Logger.Error($"New changes processing: {ex.Message}");
+        }
+        finally
+        {
+            QueueService.IsHandlingEvent = false;
+        }
+    }
 
-				if (changes.Count == 0
-					|| e.Subscription.Session.SessionId == null)
-				{
-					return;
-				}
+    private void SendSubscription(SubscriptionValue subscriptionRequest) =>
+        Task.Run(async () =>
+            {
+                LoggerManager.Logger.Information($"[monitoring subscription] Name: {subscriptionRequest.DisplayName} SessionId: {subscriptionRequest.SessionNodeId} Interval:{subscriptionRequest.PublishingInterval}");
 
-				processedSequences.Add(e.NotificationMessage.SequenceNumber);
+                await _signalRService.SendSubscriptionAsync(subscriptionRequest, subscriptionRequest.SessionNodeId);
 
-				sessionManager.TryGetSession(e.Subscription.Session.SessionId.ToString(), out var session);
-				subscriptionManager.GetSubscription(session.SessionNodeId, e.Subscription.Id, out var subscriptionGuid);
+                foreach (MonitoredItemValue monitoredItem in subscriptionRequest.MonitoredItems)
+                {
+                    if (!float.TryParse(monitoredItem.Value, out var itemValue))
+                    {
+                        continue;
+                    }
 
-				var subscriptionResponce = new SubscriptionValue
-				{
-					Guid = subscriptionGuid,
-					DisplayName = e.Subscription.DisplayName,
-					OpcUaId = e.Subscription.Id,
-					ItemsCount = e.Subscription.MonitoredItemCount,
-					PublishingInterval = e.Subscription.PublishingInterval,
-					SequenceNumber = e.Subscription.SequenceNumber,
-					SessionNodeId = e.Subscription.Session.SessionId.ToString(),
-					PublishingEnabled = e.Subscription.PublishingEnabled,
-				};
+                    if (itemValue > subscriptionRequest.MaxValue || itemValue < subscriptionRequest.MinValue)
+                    {
+                        LoggerManager.Logger.Warning($"[node beyond the range] NodeId: {monitoredItem.StartNodeId} - {monitoredItem.Value}. Max: {subscriptionRequest.MaxValue} Min: {subscriptionRequest.MinValue}");
+                        await _azureMS.SendNodeAsync(monitoredItem);
+                    }
 
-				foreach (var change in changes)
-				{
-					var monitoringItem = e.Subscription.FindItemByClientHandle(change.ClientHandle);
-					if (monitoringItem == null)
-						continue;
-
-					var nodeValue = new MonitoredItemValue()
-					{
-						SessionGuid = session.Guid,
-						SubscriptionGuid = subscriptionGuid,
-						SubscriptionOpcId = e.Subscription.Id,
-						DisplayName = monitoringItem.DisplayName,
-						StartNodeId = monitoringItem.StartNodeId.ToString(),
-						CreatedAt = change.Value.SourceTimestamp.ToLocalTime(),
-						QueueSize = monitoringItem.QueueSize,
-						Value = change.Value.WrappedValue.Value.ToString(),
-						SamplingInterval = monitoringItem.SamplingInterval,
-					};
-
-					subscriptionResponce.MonitoredItems.Add(nodeValue);
-
-					LoggerManager.Logger.Information($"[monitoring node] NodeId: {nodeValue.StartNodeId} sequence: {subscriptionResponce.SequenceNumber}");
-
-					Task.Run(async () =>
-					{
-						await signalRService.SendNodeAsync(nodeValue, subscriptionResponce.SessionNodeId);
-						await monitoredItemService.SaveMonitoredItemValueAsync(nodeValue);
-						//await _azureMS.SendNodeAsync(nodeValue);
-					});
-				}
-
-				Task.Run(async () =>
-				{
-					await SendSubscriptionAsync(subscriptionResponce);
-				});
-
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error($"Collection error, {ex.Message}");
-			}
-			finally
-			{
-				_semaphore.Release();
-				isHandlingEvent = false;
-			}
-		}
-		#endregion
-	}
+                    await _signalRService.SendNodeAsync(monitoredItem, subscriptionRequest.SessionNodeId); //TODO: eliminate it
+                    await _monitoredItemService.SaveMonitoredItemValueAsync(monitoredItem);
+                }
+            });
+    #endregion
 }

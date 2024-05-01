@@ -1,98 +1,84 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using QIA.Opc.Domain.Common;
-using QIA.Opc.Domain.Requests;
-using QIA.Opc.Infrastructure.Services.OPCUA;
+namespace QIA.Opc.API.Controllers;
+
 using System.Web;
+using global::Opc.Ua.Client;
+using Microsoft.AspNetCore.Mvc;
+using Qia.Opc.Domain.Entities;
+using QIA.Opc.Application.Requests;
+using QIA.Opc.Domain.Entities;
+using QIA.Opc.Infrastructure.Application;
+using QIA.Opc.Infrastructure.Services.OPCUA;
 
-namespace QIA.Opc.API.Controllers
+public class MonitoredItemController : BaseController
 {
-	public class MonitoredItemController : BaseController
-	{
-		private readonly MonitoredItemService monitoredItemService;
-		private readonly SubscriptionService subscriptionService;
+    private readonly MonitoredItemService _monitoredItemService;
+    private readonly SubscriptionService _subscriptionService;
 
-		public MonitoredItemController(MonitoredItemService monitoredItemService, SubscriptionService subscriptionService)
-		{
-			this.monitoredItemService = monitoredItemService;
-			this.subscriptionService = subscriptionService;
-		}
+    public MonitoredItemController(MonitoredItemService monitoredItemService, SubscriptionService subscriptionService)
+    {
+        _monitoredItemService = monitoredItemService;
+        _subscriptionService = subscriptionService;
+    }
 
-		[HttpPost("addToSubscription")]
-		public async Task<IActionResult> AddToSubscription([FromBody] RequestObject requestObj)
-		{
-			try
-			{
-				var monitoredItem = monitoredItemService.AddItemToSubscription(requestObj.SessionNodeId, (uint)requestObj.OpcUaId, requestObj.NodeId);
-				if (!monitoredItem.IsSuccess)
-				{
-					return HandleResponse(monitoredItem);
-				}
+    [HttpPost("addToSubscription")]
+    public async Task<IActionResult> AddToSubscription([FromQuery]string sessionNodeId,string subscriptionGuid, uint subscriptionId,[FromBody] string nodeId)
+    {
+        ApiResponse<MonitoredItem> monitoredItem = _monitoredItemService.AddItemToSubscription(sessionNodeId,
+            subscriptionId,
+            nodeId);
 
-				var subscriptionConfig = await subscriptionService.GetSubscriptionConfig(requestObj.SessionNodeId, (uint)requestObj.OpcUaId);
-				if (!subscriptionConfig.IsSuccess)
-				{
-					return HandleResponse(subscriptionConfig);
-				}
+        if (!monitoredItem.IsSuccess)
+        {
+            return HandleResponse(monitoredItem);
+        }
 
-				var item = await monitoredItemService.UpdateSubscriptionEntityAsync(subscriptionConfig.Value, monitoredItem.Value);
+        ApiResponse<SubscriptionConfig> subscriptionConfig = await _subscriptionService.GetSubscriptionConfig(subscriptionGuid);
+        if (!subscriptionConfig.IsSuccess)
+        {
+            return HandleResponse(subscriptionConfig);
+        }
 
-				return HandleResponse(item);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+        ApiResponse<MonitoredItemConfig> item = await _monitoredItemService.UpdateSubscriptionEntityAsync(subscriptionConfig.Value, monitoredItem.Value);
 
-		[HttpGet("get")]
-		public IActionResult GetMonitoredItem([FromQuery] string nodeId, string sessionNodeId, uint subscriptionId)
-		{
-			try
-			{
-				nodeId = HttpUtility.UrlDecode(nodeId);
-				var response = monitoredItemService.GetMonitoringItem(sessionNodeId, subscriptionId, nodeId);
+        return HandleResponse(item);
 
-				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+    }
 
-		[HttpPut("update")]
-		public IActionResult UpdateMonitoredItem([FromQuery] string sessionNodeId, uint subscriptionId, [FromBody] MonitoredItemRequest updatedItem)
-		{
-			try
-			{
-				var updatedSessionResponse = monitoredItemService.UpdateMonitoredItem(sessionNodeId, subscriptionId, updatedItem);
+    [HttpGet("get")]
+    public IActionResult GetMonitoredItem([FromQuery] string sessionNodeId, uint subscriptionId, string nodeId)
+    {
+        try
+        {
+            nodeId = HttpUtility.UrlDecode(nodeId);
+            ApiResponse<MonitoredItem> response = _monitoredItemService.GetMonitoringItem(sessionNodeId, subscriptionId, nodeId);
 
-				return HandleResponse(updatedSessionResponse);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
+            return HandleResponse(response);
+        }
+        catch (Exception ex)
+        {
+            LoggerManager.Logger.Error("{0}", ex);
+            throw;
+        }
+    }
 
-		[HttpDelete("delete")]
-		public IActionResult DeleteMonitoringItem([FromQuery] string nodeId, string sessionNodeId, uint subscriptionId)
-		{
-			try
-			{
-				nodeId = HttpUtility.UrlDecode(nodeId);
-				var response = monitoredItemService.DeleteMonitoringItem(sessionNodeId, subscriptionId, nodeId);
+    [HttpPut("update")]
+    public IActionResult UpdateMonitoredItem([FromQuery] string sessionNodeId, uint subscriptionId, [FromBody] MonitoredItemRequest updatedItem)
+    {
 
-				return HandleResponse(response);
-			}
-			catch (Exception ex)
-			{
-				LoggerManager.Logger.Error("{0}", ex);
-				throw;
-			}
-		}
-	}
+        ApiResponse<bool> updatedSessionResponse = _monitoredItemService.UpdateMonitoredItem(sessionNodeId, subscriptionId, updatedItem);
+
+        return HandleResponse(updatedSessionResponse);
+
+    }
+
+    [HttpDelete("delete")]
+    public IActionResult DeleteMonitoringItem([FromQuery] string sessionNodeId, uint subscriptionId, string subscriptionGuid, string nodeId)
+    {
+
+        nodeId = HttpUtility.UrlDecode(nodeId);
+        ApiResponse<bool> response = _monitoredItemService.DeleteMonitoringItem(sessionNodeId, subscriptionId, subscriptionGuid, nodeId);
+
+        return HandleResponse(response);
+
+    }
 }

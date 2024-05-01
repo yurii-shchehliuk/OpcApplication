@@ -1,11 +1,10 @@
-﻿namespace Qia.Opc.Domain.Entities.Enums
+﻿namespace Qia.Opc.Domain.Entities.Enums;
+
+public enum LogCategory
 {
-	public enum LogCategory
-	{
-		Info,
-		Success,
-		Warning,
-		Error,
-		Critical
-	}
+    Info,
+    Success,
+    Warning,
+    Error,
+    Critical
 }

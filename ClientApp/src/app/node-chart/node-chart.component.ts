@@ -5,8 +5,7 @@ import {
   ChartConfiguration,
   registerables,
 } from 'chart.js';
-import { Subscription } from 'rxjs';
-import { NodeService } from '../services/node.service';
+import { Subscription, takeUntil } from 'rxjs';
 import { SessionEntity } from '../models/sessionModels';
 import { SessionAccessorService } from '../shared/session-accessor.service';
 import {
@@ -17,13 +16,16 @@ import { SessionState } from '../models/enums';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { SharedService } from '../shared/shared.service';
 import { SubscriptionConfig } from '../models/subscriptionModels';
+import { CommunicationService } from '../services/communication.service';
+import { MonitoredItemService } from '../services/monitored-item.service';
+import { BaseComponent } from '../shared/components/base/base.component';
 
 @Component({
   selector: 'app-node-chart',
   templateUrl: './node-chart.component.html',
   styleUrls: ['./node-chart.component.scss'],
 })
-export class NodeChartComponent {
+export class NodeChartComponent extends BaseComponent {
   chart: Chart;
   datasets: ChartDataset[] = [];
   labels: string[] = [];
@@ -32,54 +34,61 @@ export class NodeChartComponent {
   sessionSource: SessionEntity = (<Partial<SessionEntity>>{}) as SessionEntity;
   sessionState = SessionState;
   nodeArray: MonitoredItemConfig[] = [];
-  subscriptions: Subscription[] = [];
 
   constructor(
     private sessionAccessor: SessionAccessorService,
-    private nodeService: NodeService,
-    private sharedService: SharedService
+    private monitoredItemService: MonitoredItemService,
+    private sharedService: SharedService,
+    private communicationService: CommunicationService
   ) {
+    super();
     Chart.register(...registerables, annotationPlugin);
   }
 
   ngOnInit() {
     this.createChart();
     // when session changed - reset everything
-    this.sessionAccessor.currentSession$.subscribe((data: SessionEntity) => {
-      this.sessionSource = data;
+    this.sessionAccessor.currentSession$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((data: SessionEntity) => {
+        this.sessionSource = data;
 
-      this.nodeArray = [];
-      this.datasets = [];
-      this.labels = [];
+        this.nodeArray = [];
+        this.datasets = [];
+        this.labels = [];
 
-      this.chart.destroy();
-      this.createChart();
-    });
+        this.chart.destroy();
+        this.createChart();
+      });
 
     // Fill up chart with data if not present ignore
-    this.nodeService.getNodeValueObservable$.subscribe(
-      (NodeValue: MonitoredItemValue) => {
+    this.communicationService.getNodeObservable
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((NodeValue: MonitoredItemValue) => {
         this.pushEventToChartData(NodeValue);
-      }
-    );
+      });
 
     // Remove node from the subscription then from the dataset
-    this.nodeService.nodeToRemove$.subscribe({
-      next: (nodeId: string) => {
-        let datasetIndex = this.datasets.findIndex((c) => c.label === nodeId);
-        this.datasets.splice(datasetIndex, 1);
-        this.refreshChart();
-      },
-    });
+    this.monitoredItemService.nodeToRemove$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (nodeId: string) => {
+          let datasetIndex = this.datasets.findIndex((c) => c.label === nodeId);
+          this.datasets.splice(datasetIndex, 1);
+          this.refreshChart();
+        },
+      });
 
     //on subscriptionConfig modify refresh chart
-    this.sharedService.chartValueBoundaries$.subscribe({
-      next: (value: SubscriptionConfig) => {
-        this.minLineValue = value.minValue;
-        this.maxLineValue = value.maxValue;
-        this.updateChart();
-      },
-    });
+    this.sharedService.chartValueBoundaries$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (value: SubscriptionConfig) => {
+          this.minLineValue = value.minValue;
+          this.maxLineValue = value.maxValue;
+          this.updateChart();
+        },
+      });
   }
 
   ngAfterViewInit(): void {
@@ -157,6 +166,7 @@ export class NodeChartComponent {
       },
     };
   }
+
   protected getNodeValue(nodeId: string) {
     let dataset = this.datasets.find((c) => c.label === nodeId);
     if (!dataset) return 0;
@@ -247,9 +257,5 @@ export class NodeChartComponent {
     }
 
     this.refreshChart();
-  }
-
-  ngOnDestroy() {
-    this.subscriptions.forEach((c) => c.unsubscribe());
   }
 }

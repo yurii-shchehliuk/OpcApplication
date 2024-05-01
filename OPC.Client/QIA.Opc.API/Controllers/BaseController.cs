@@ -1,27 +1,19 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Qia.Opc.Domain.Core;
+namespace QIA.Opc.API.Controllers;
 
-namespace QIA.Opc.API.Controllers
+using Microsoft.AspNetCore.Mvc;
+using QIA.Opc.Infrastructure.Application;
+
+[ApiController]
+[Route("[controller]")]
+public abstract class BaseController : ControllerBase
 {
-	[ApiController]
-	[Route("[controller]")]
-	public abstract class BaseController : ControllerBase
-	{
-		protected ActionResult HandleResponse<T>(ApiResponse<T> response)
-		{
-			if (response == null)
-			{
-				return BadRequest();
-			}
+    protected ActionResult HandleResponse<T>(ApiResponse<T> response)
+    {
+        if (response.IsSuccess)
+        {
+            return StatusCode((int)response.Status, response.Value);
+        }
 
-			if (response.IsSuccess)
-			{
-				return StatusCode((int)response.Status, response.Value);
-			}
-			else
-			{
-				return StatusCode((int)response.Status, response.Error);
-			}
-		}
-	}
+        return StatusCode((int)response.Status, response.Error);
+    }
 }

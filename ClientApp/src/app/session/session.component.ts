@@ -6,13 +6,15 @@ import { SessionDialogComponent } from './session-dialog/session-dialog.componen
 import { SessionEntity } from '../models/sessionModels';
 import { SessionState } from '../models/enums';
 import { SharedService } from '../shared/shared.service';
+import { BaseComponent } from '../shared/components/base/base.component';
+import { takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-session',
   templateUrl: './session.component.html',
   styleUrls: ['./session.component.scss'],
 })
-export class SessionComponent {
+export class SessionComponent extends BaseComponent {
   sessionState = SessionState;
   sessionArr: SessionEntity[] = [];
   panelOpenState = false;
@@ -24,58 +26,65 @@ export class SessionComponent {
     private sharedService: SharedService,
     public dialog: MatDialog
   ) {
+    super();
     this.communicationService.signalrInit();
   }
 
   ngOnInit(): void {
     //1 get all sessions
-    this.sessionService.sessionList$.subscribe((res) => {
-      res.map((session) => {
-        session.isSelected = false;
-        const index = this.sessionArr.findIndex(
-          (sessionItem) => sessionItem.guid === session.guid
-        );
-        if (index !== -1) {
-          this.sessionArr[index] = session;
-        } else {
-          this.sessionArr.push(session);
-        }
+    this.sessionService.sessionList$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res) => {
+        res.map((session) => {
+          session.isSelected = false;
+          const index = this.sessionArr.findIndex(
+            (sessionItem) => sessionItem.guid === session.guid
+          );
+          if (index !== -1) {
+            this.sessionArr[index] = session;
+          } else {
+            this.sessionArr.push(session);
+          }
+        });
       });
-    });
 
     //2 on connected replace session entity
-    this.sessionService.selectedSession$.subscribe((res) => {
-      // update session array with connected session data
-      if (!res.sessionNodeId) return;
-      const index = this.sessionArr.findIndex(
-        (session) => session.name === res.name
-      );
-      res.isSelected = true;
-      if (index !== -1) {
-        this.sessionArr[index] = res;
-      } else {
-        this.sessionArr.push(res);
-      }
-      // flat for css
-      this.sessionArr.map((session) => {
-        if (session.guid != res.guid) {
-          session.isSelected = false;
+    this.sessionService.selectedSession$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res) => {
+        // update session array with connected session data
+        if (!res.sessionNodeId) return;
+        const index = this.sessionArr.findIndex(
+          (session) => session.name === res.name
+        );
+        res.isSelected = true;
+        if (index !== -1) {
+          this.sessionArr[index] = res;
+        } else {
+          this.sessionArr.push(res);
         }
-      });
+        // flat for css
+        this.sessionArr.map((session) => {
+          if (session.guid != res.guid) {
+            session.isSelected = false;
+          }
+        });
 
-      this.communicationService.joinNewGroup(res.sessionNodeId);
-    });
+        this.communicationService.joinNewGroup(res.sessionNodeId);
+      });
 
     this.sessionService.getSessionList();
 
-    this.sharedService.updateSessionList$.subscribe({
-      next: () => {
-        setTimeout(() => {
-          this.sessionArr = [];
-          this.sessionService.getSessionList();
-        }, 500);
-      },
-    });
+    this.sharedService.updateSessionList$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          setTimeout(() => {
+            this.sessionArr = [];
+            this.sessionService.getSessionList();
+          }, 500);
+        },
+      });
   }
 
   selectSession(selectedSession: SessionEntity) {
@@ -89,17 +98,20 @@ export class SessionComponent {
   }
 
   disconnectSession(event: any, session: SessionEntity) {
-    this.sessionService.disconnect(session).subscribe({
-      next: () => {
-        const index = this.sessionArr.findIndex(
-          (sessionItem) => sessionItem.guid === session.guid
-        );
-        if (index !== -1) {
-          this.sessionArr[index].state = SessionState.disconnected;
-          this.sessionArr[index].sessionNodeId = '';
-        }
-      },
-    });
+    this.sessionService
+      .disconnect(session)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          const index = this.sessionArr.findIndex(
+            (sessionItem) => sessionItem.guid === session.guid
+          );
+          if (index !== -1) {
+            this.sessionArr[index].state = SessionState.disconnected;
+            this.sessionArr[index].sessionNodeId = '';
+          }
+        },
+      });
     event.stopPropagation();
   }
 

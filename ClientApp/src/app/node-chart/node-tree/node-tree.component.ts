@@ -19,13 +19,15 @@ import {
 } from 'src/app/models/subscriptionModels';
 import { MonitoredItemValue } from 'src/app/models/monitoredItem';
 import { MonitoredItemService } from 'src/app/services/monitored-item.service';
+import { BaseComponent } from 'src/app/shared/components/base/base.component';
+import { takeUntil } from 'rxjs';
 
 @Component({
   selector: 'app-node-tree',
   templateUrl: './node-tree.component.html',
   styleUrls: ['./node-tree.component.scss'],
 })
-export class NodeTreeComponent implements OnInit {
+export class NodeTreeComponent extends BaseComponent implements OnInit {
   treeControl: FlatTreeControl<DynamicFlatNode>;
   dataSource: DynamicDataSource;
   sessionSource: SessionEntity;
@@ -40,47 +42,56 @@ export class NodeTreeComponent implements OnInit {
     private subscriptionService: SubscriptionService,
     private monitoredItemSvs: MonitoredItemService
   ) {
+    super();
+
     this.treeControl = new FlatTreeControl<DynamicFlatNode>(
       this.getLevel,
       this.isExpandable
     );
     this.dataSource = new DynamicDataSource(this.treeControl, database);
-
-    this.sessionAccessor.currentSession$.subscribe((res) => {
-      this.sessionSource = res;
-      if (this.sessionSource.state === SessionState.connected) {
-        this.dataSource.data = database.initialData();
-        this.subscriptionsArr = [];
-      }
-    });
   }
 
   ngOnInit(): void {
-    this.subscriptionService.getActiveSubscriptions().subscribe({
-      next: (subsValArr: SubscriptionValue[]) => {
-        subsValArr.map((value) => {
-          const index = this.subscriptionsArr.findIndex(
-            (sub) => sub.guid === value.guid
-          );
-          if (index !== -1) {
-            this.subscriptionsArr[index] = value;
-          } else {
-            this.subscriptionsArr.push(value);
-          }
-        });
-        // event.stopPropagation();
-        // event.preventDefault();
-      },
-    });
+    this.sessionAccessor.currentSession$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((res) => {
+        this.sessionSource = res;
+        if (this.sessionSource.state === SessionState.connected) {
+          this.dataSource.data = this.database.initialData();
+          this.subscriptionsArr = [];
+        }
+      });
 
-    this.subscriptionService.subscriptionToRemove$.subscribe({
-      next: (subscriptionId: string) => {
-        const index = this.subscriptionsArr.findIndex(
-          (sub) => sub.opcUaId.toString() === subscriptionId
-        );
-        this.subscriptionsArr.splice(index, 1);
-      },
-    });
+    this.subscriptionService
+      .getActiveSubscriptions()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (subsValArr: SubscriptionValue[]) => {
+          subsValArr.map((value) => {
+            const index = this.subscriptionsArr.findIndex(
+              (sub) => sub.guid === value.guid
+            );
+            if (index !== -1) {
+              this.subscriptionsArr[index] = value;
+            } else {
+              this.subscriptionsArr.push(value);
+            }
+          });
+          // event.stopPropagation();
+          // event.preventDefault();
+        },
+      });
+
+    this.subscriptionService.subscriptionToRemove$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (subscriptionId: string) => {
+          const index = this.subscriptionsArr.findIndex(
+            (sub) => sub.opcUaId.toString() === subscriptionId
+          );
+          this.subscriptionsArr.splice(index, 1);
+        },
+      });
   }
 
   downloadTree() {

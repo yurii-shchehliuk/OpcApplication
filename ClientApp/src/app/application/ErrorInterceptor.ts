@@ -18,13 +18,14 @@ import {
 import { NotificationService } from '../shared/notification.service';
 import { SessionAccessorService } from '../shared/session-accessor.service';
 import { LoadingService } from '../shared/loading.service';
+import { SessionService } from '../services/session.service';
 
 @Injectable()
 export class ErrorInterceptor implements HttpInterceptor {
   constructor(
     private loadingService: LoadingService,
     private notifyService: NotificationService,
-    private sessionAccessorService: SessionAccessorService
+    private sessionService: SessionService
   ) {}
 
   intercept(
@@ -38,7 +39,7 @@ export class ErrorInterceptor implements HttpInterceptor {
     return next.handle(request).pipe(
       catchError((error: HttpErrorResponse) => {
         let errorMsg = '';
-
+        // error message
         if (error.error instanceof ErrorEvent) {
           errorMsg = `Error: ${error.error.message}`;
         } else {
@@ -46,10 +47,13 @@ export class ErrorInterceptor implements HttpInterceptor {
             error.status
           }`;
         }
-        console.error(error);
+        // server is not accessible
         if (error.status === 0 && error.url?.includes('session')) {
           this.notifyService.showError('', 'Server is not accessible');
+          this.sessionService.setSessionIsNotActive();
         }
+
+        console.error(error);
         return throwError(error);
       }),
       finalize(() => this.loadingService.hide())
